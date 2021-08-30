@@ -66,6 +66,13 @@ struct NMF_DATA_TAG {
   int32_t note_count;
   
   /*
+   * The quantum basis.
+   * 
+   * Must be one of the NMF_BASIS constants.
+   */
+  int32_t basis;
+  
+  /*
    * Pointer to the section table.
    * 
    * This is a dynamically allocated array with a number of elements
@@ -512,7 +519,6 @@ NMF_DATA *nmf_parse(FILE *pf) {
   int32_t v = 0;
   NMF_DATA *pd = NULL;
   NMF_NOTE *pn = NULL;
-  NMF_NOTE *pnp = NULL;
   
   /* Read the primary and secondary signatures */
   if (nmf_readUint32(pf) != NMF_SIGPRI) {
@@ -535,9 +541,19 @@ NMF_DATA *nmf_parse(FILE *pf) {
     pd->pNote = NULL;
   }
   
+  /* Read the quantum basis */
+  if (status) {
+    pd->basis = nmf_readUint16(pf);
+    if ((pd->basis != NMF_BASIS_Q96) &&
+        (pd->basis != NMF_BASIS_44100) &&
+        (pd->basis != NMF_BASIS_48000)) {
+      status = 0;
+    }
+  }
+  
   /* Read the section count and note count */
   if (status) {
-    pd->sect_count = nmf_readUint32(pf);
+    pd->sect_count = nmf_readUint16(pf);
     if ((pd->sect_count < 1) || (pd->sect_count > NMF_MAXSECT)) {
       status = 0;
     }
@@ -599,12 +615,8 @@ NMF_DATA *nmf_parse(FILE *pf) {
   if (status) {
     for(i = 0; i < pd->note_count; i++) {
       
-      /* Get pointer to current note and previous note (unless first
-       * note) */
+      /* Get pointer to current note */
       pn = &((pd->pNote)[i]);
-      if (i > 0) {
-        pnp = &((pd->pNote)[i - 1]);
-      }
       
       /* Read the fields of the current note */
       pn->t = nmf_readUint32(pf);
@@ -675,20 +687,6 @@ NMF_DATA *nmf_parse(FILE *pf) {
         }
       }
       
-      /* If not the first note, make sure it is ordered correctly */
-      if (status && (i > 0)) {
-        if (pn->t < pnp->t) {
-          /* t offsets out of order */
-          status = 0;
-        
-        } else if (pn->t == pnp->t) {
-          if (pn->dur < pnp->dur) {
-            /* durations out of order */
-            status = 0;
-          }
-        }
-      }
-      
       /* Leave loop if error */
       if (!status) {
         break;
@@ -751,6 +749,16 @@ void nmf_free(NMF_DATA *pd) {
     free(pd->pNote);
     free(pd);
   }
+}
+
+/*
+ * nmf_basis function.
+ */
+int nmf_basis(NMF_DATA *pd) {
+  if (pd == NULL) {
+    abort();
+  }
+  return (int) pd->basis;
 }
 
 /*
