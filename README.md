@@ -15,7 +15,10 @@ To convert an NMF file into a data format that can be used with the Retro synthe
 
 ## Release history
 
+### Version 0.5.1 Beta
+
+A few small fixes, mostly upgrading to use the new Shastina 0.9.2 beta in `nmftempo` (the only place Shastina is currently used).  Also dropped the unimplemented and unfinished Retro configuration Shastina file from the `doc` directory.
+
 ### Version 0.5.0 Beta
 
 The Noir version that has already been used for several projects.  This version only includes support for the Retro synthesizer.
-
