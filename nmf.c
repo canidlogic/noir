@@ -40,6 +40,13 @@
 #define NMF_SIGSEC (INT32_C(1313818926))
 
 /*
+ * Initial allocation capacities, in elements, of the section and note
+ * tables.
+ */
+#define NMF_SECTALLOC_INIT (16)
+#define NMF_NOTEALLOC_INIT (256)
+
+/*
  * Type definitions
  * ================
  */
@@ -59,11 +66,25 @@ struct NMF_DATA_TAG {
   int32_t sect_count;
   
   /*
+   * The capacity of the section table.
+   * 
+   * Must be in range [1, NMF_MAXSECT].
+   */
+  int32_t sect_cap;
+  
+  /*
    * The number of notes.
    * 
    * Must be in range [1, NMF_MAXNOTE].
    */
   int32_t note_count;
+  
+  /*
+   * The capacity of the note table.
+   * 
+   * Must be in range [1, NMF_MAXNOTE].
+   */
+  int32_t note_cap;
   
   /*
    * The quantum basis.
@@ -76,7 +97,7 @@ struct NMF_DATA_TAG {
    * Pointer to the section table.
    * 
    * This is a dynamically allocated array with a number of elements
-   * given by sect_count.
+   * given by sect_cap and the total elements used given by sect_count.
    * 
    * Each element is the offset in quanta from the start of the
    * composition.
@@ -91,10 +112,7 @@ struct NMF_DATA_TAG {
    * Pointer to the note table.
    * 
    * This is a dynamically allocated array with a number of elements
-   * given by note_count.
-   * 
-   * The notes must be sorted primarily by ascending time offset, and
-   * then have a secondary sort of ascending duration.
+   * given by note_cap and the total elements used given by note_count.
    * 
    * Time offsets of notes must not be less than the time offset of the
    * section that the note belongs to.
@@ -108,6 +126,12 @@ struct NMF_DATA_TAG {
  */
 
 /* Prototypes */
+static void nmf_writeByte(FILE *pOut, int c);
+static void nmf_writeUint32(FILE *pOut, uint32_t v);
+static void nmf_writeUint16(FILE *pOut, uint16_t v);
+static void nmf_writeBias32(FILE *pOut, int32_t v);
+static void nmf_writeBias16(FILE *pOut, int16_t v);
+
 static int nmf_readByte(FILE *pf);
 static int nmf_read32(FILE *pf, uint32_t *pv);
 static int nmf_read16(FILE *pf, uint16_t *pv);
@@ -116,6 +140,135 @@ static int32_t nmf_readUint32(FILE *pf);
 static int nmf_readBias32(FILE *pf, int32_t *pv);
 static int32_t nmf_readUint16(FILE *pf);
 static int nmf_readBias16(FILE *pf, int16_t *pv);
+
+static int nmf_cmp(const void *pva, const void *pvb);
+
+/*
+ * Write a byte to the output file.
+ * 
+ * pOut is the file to write to.  It must be open for writing or
+ * undefined behavior occurs.
+ * 
+ * c is the unsigned byte value to write, in range [0, 255].
+ * 
+ * Parameters:
+ * 
+ *   pOut - the output file
+ * 
+ *   c - the unsigned byte value to write
+ */
+static void nmf_writeByte(FILE *pOut, int c) {
+  
+  /* Check parameters */
+  if ((pOut == NULL) || (c < 0) || (c > 255)) {
+    abort();
+  }
+  
+  /* Write the byte */
+  if (putc(c, pOut) != c) {
+    abort();  /* I/O error */
+  }
+}
+
+/*
+ * Write an unsigned 32-bit integer value to the given file in big
+ * endian order.
+ * 
+ * This is a wrapper around nmf_writeByte() which writes the integer
+ * value as four bytes with most significant byte first and least
+ * significant byte last.
+ * 
+ * Parameters:
+ * 
+ *   pOut - output file to write to
+ * 
+ *   v - the value to write
+ */
+static void nmf_writeUint32(FILE *pOut, uint32_t v) {
+  
+  nmf_writeByte(pOut, (int) (v >> 24));
+  nmf_writeByte(pOut, (int) ((v >> 16) & 0xff));
+  nmf_writeByte(pOut, (int) ((v >> 8) & 0xff));
+  nmf_writeByte(pOut, (int) (v & 0xff));
+}
+
+/*
+ * Write an unsigned 16-bit integer value to the given file in big
+ * endian order.
+ * 
+ * This is a wrapper around nmf_writeByte() which writes the integer
+ * value as two bytes with most significant byte first and least
+ * significant byte second.
+ * 
+ * Parameters:
+ * 
+ *   pOut - output file to write to
+ * 
+ *   v - the value to write
+ */
+static void nmf_writeUint16(FILE *pOut, uint16_t v) {
+  
+  nmf_writeByte(pOut, (int) (v >> 8));
+  nmf_writeByte(pOut, (int) (v & 0xff));
+}
+
+/*
+ * Write a biased 32-bit signed integer value to the given file in big
+ * endian order.
+ * 
+ * This is a wrapper around nmf_writeUint32() which writes a raw value
+ * that is the given signed value plus NMF_BIAS32.  This biased value
+ * must be in unsigned 32-bit range or a fault occurs.
+ * 
+ * Parameters:
+ * 
+ *   pOut - output file to write to
+ * 
+ *   v - the value to write
+ */
+static void nmf_writeBias32(FILE *pOut, int32_t v) {
+  
+  int64_t rv = 0;
+  
+  /* Compute raw value */
+  rv = ((int64_t) v) + NMF_BIAS32;
+  
+  /* If inside unsigned 32-bit range, pass through; else, fault */
+  if ((rv >= 0) && (rv <= UINT32_MAX)) {
+    nmf_writeUint32(pOut, (uint32_t) rv);
+  } else {
+    abort();
+  }
+}
+
+/*
+ * Write a biased 16-bit signed integer value to the given file in big
+ * endian order.
+ * 
+ * This is a wrapper around nmf_writeUint16() which writes a raw value
+ * that is the given signed value plus NMF_BIAS16.  This biased value
+ * must be in unsigned 16-bit range or a fault occurs.
+ * 
+ * Parameters:
+ * 
+ *   pOut - output file to write to
+ * 
+ *   v - the value to write
+ */
+static void nmf_writeBias16(FILE *pOut, int16_t v) {
+  
+  int32_t rv = 0;
+  
+  /* Compute raw value */
+  rv = ((int32_t) v) + NMF_BIAS16;
+  
+  /* If inside unsigned 16-bit range, pass through; else, fault */
+  if ((rv >= 0) && (rv <= UINT16_MAX)) {
+    nmf_writeUint16(pOut, (uint16_t) rv);
+  } else {
+    abort();
+  }
+}
 
 /*
  * Read an unsigned byte value from the given file.
@@ -503,11 +656,106 @@ static int nmf_readBias16(FILE *pf, int16_t *pv) {
 }
 
 /*
+ * Compare two note events to each other.
+ * 
+ * The comparison is less than, equals, or greater than according to the
+ * time offsets of the note events.  Grace note offsets are not taken
+ * into account.
+ * 
+ * The function is designed to be used with the qsort() function of the
+ * standard library.  The pointers are to NMF_NOTE structures.
+ * 
+ * Parameters:
+ * 
+ *   pva - void pointer to the first note event
+ * 
+ *   pvb - void pointer to the second note event
+ * 
+ * Return:
+ * 
+ *   less than, equal to, or greater than zero as note event a is less
+ *   than, equal to, or greater than note event b
+ */
+static int nmf_cmp(const void *pva, const void *pvb) {
+  
+  int result = 0;
+  const NMF_NOTE *pa = NULL;
+  const NMF_NOTE *pb = NULL;
+  
+  /* Check parameters */
+  if ((pva == NULL) || (pvb == NULL)) {
+    abort();
+  }
+  
+  /* Get pointers to note events a and b */
+  pa = (const NMF_NOTE *) pva;
+  pb = (const NMF_NOTE *) pvb;
+  
+  /* Compare time offsets */
+  if (pa->t < pb->t) {
+    /* First t less than second t */
+    result = -1;
+    
+  } else if (pa->t > pb->t) {
+    /* First t greater than second t */
+    result = 1;
+    
+  } else if (pa->t == pb->t) {
+    /* Both events have same t */
+    result = 0;
+    
+  } else {
+    /* Shouldn't happen */
+    abort();
+  }
+  
+  /* Return result */
+  return result;
+}
+
+/*
  * Public function implementations
  * ===============================
  * 
  * See the header for specifications.
  */
+
+/*
+ * nmf_alloc function.
+ */
+NMF_DATA *nmf_alloc(void) {
+  
+  NMF_DATA *pd = NULL;
+  
+  /* Allocate data structure */
+  pd = (NMF_DATA *) malloc(sizeof(NMF_DATA));
+  if (pd == NULL) {
+    abort();
+  }
+  memset(pd, 0, sizeof(NMF_DATA));
+  
+  /* Allocate the section and note tables with initial capacities */
+  pd->pSect = (int32_t *) calloc(NMF_SECTALLOC_INIT, sizeof(int32_t));
+  if (pd->pSect == NULL) {
+    abort();
+  }
+  
+  pd->pNote = (NMF_NOTE *) calloc(NMF_NOTEALLOC_INIT, sizeof(NMF_NOTE));
+  if (pd->pNote == NULL) {
+    abort();
+  }
+  
+  /* Set the initial state */
+  pd->sect_count = 1;
+  pd->sect_cap = NMF_SECTALLOC_INIT;
+  pd->note_count = 0;
+  pd->note_cap = NMF_NOTEALLOC_INIT;
+  pd->basis = (int32_t) NMF_BASIS_Q96;
+  (pd->pSect)[0] = 0;
+  
+  /* Return the new object */
+  return pd;
+}
 
 /*
  * nmf_parse function.
@@ -563,6 +811,12 @@ NMF_DATA *nmf_parse(FILE *pf) {
     if ((pd->note_count < 1) || (pd->note_count > NMF_MAXNOTE)) {
       status = 0;
     }
+  }
+  
+  /* Set the capacities equal to the counts */
+  if (status) {
+    pd->sect_cap = pd->sect_count;
+    pd->note_cap = pd->note_count;
   }
   
   /* Allocate the section and note arrays */
@@ -805,4 +1059,288 @@ void nmf_get(NMF_DATA *pd, int32_t note_i, NMF_NOTE *pn) {
     abort();
   }
   memcpy(pn, &((pd->pNote)[note_i]), sizeof(NMF_NOTE));
+}
+
+/*
+ * nmf_set function.
+ */
+void nmf_set(NMF_DATA *pd, int32_t note_i, const NMF_NOTE *pn) {
+  
+  /* Check parameters */
+  if ((pd == NULL) || (pn == NULL)) {
+    abort();
+  }
+  if ((note_i < 0) || (note_i >= pd->note_count)) {
+    abort();
+  }
+  
+  /* Check fields of note parameter */
+  if (pn->dur < -(INT32_MAX)) {
+    abort();
+  }
+  if ((pn->pitch < NMF_MINPITCH) || (pn->pitch > NMF_MAXPITCH)) {
+    abort();
+  }
+  if (pn->art > NMF_MAXART) {
+    abort();
+  }
+  if (pn->sect >= pd->sect_count) {
+    abort();
+  }
+  if (pn->t < nmf_offset(pd, pn->sect)) {
+    abort();
+  }
+  
+  /* Copy new note data in */
+  memcpy(&((pd->pNote)[note_i]), pn, sizeof(NMF_NOTE));
+}
+
+/*
+ * nmf_sect function.
+ */
+int nmf_sect(NMF_DATA *pd, int32_t offset) {
+  
+  int status = 1;
+  int32_t newcap = 0;
+  
+  /* Check parameters */
+  if ((pd == NULL) || (offset < 0)) {
+    abort();
+  }
+  
+  /* Make sure offset is greater than or equal to offset of current last
+   * section (the first section is defined automatically right away, so
+   * there will always be at least one section) */
+  if (offset < nmf_offset(pd, pd->sect_count - 1)) {
+    abort();
+  }
+  
+  /* Only proceed if room for another section; otherwise, fail */
+  if (pd->sect_count < NMF_MAXSECT) {
+    
+    /* We have room for another section -- check if capacity of section
+     * table needs to be expanded */
+    if (pd->sect_count >= pd->sect_cap) {
+      
+      /* We need to expand capacity -- first, try doubling */
+      newcap = pd->sect_cap * 2;
+      
+      /* If doubled capacity is less than initial allocation, set to
+       * initial allocation */
+      if (newcap < NMF_SECTALLOC_INIT) {
+        newcap = NMF_SECTALLOC_INIT;
+      }
+      
+      /* If doubling exceeds maximum section count, set to maximum
+       * section count */
+      if (newcap > NMF_MAXSECT) {
+        newcap = NMF_MAXSECT;
+      }
+      
+      /* Reallocate with the new capacity */
+      pd->pSect = (int32_t *) realloc(
+                          pd->pSect,
+                          newcap * sizeof(int32_t));
+      if (pd->pSect == NULL) {
+        abort();
+      }
+      memset(
+          &((pd->pSect)[pd->sect_cap]),
+          0,
+          (newcap - pd->sect_cap) * sizeof(int32_t));
+      
+      /* Update capacity variable */
+      pd->sect_cap = newcap;
+    }
+    
+    /* Add the new section to the table */
+    (pd->pSect)[pd->sect_count] = offset;
+    (pd->sect_count)++;
+    
+  } else {
+    /* Section table is full */
+    status = 0;
+  }
+  
+  /* Return status */
+  return status;
+}
+
+/*
+ * nmf_append function.
+ */
+int nmf_append(NMF_DATA *pd, const NMF_NOTE *pn) {
+  
+  int status = 1;
+  int32_t newcap = 0;
+  
+  /* Check parameters */
+  if ((pd == NULL) || (pn == NULL)) {
+    abort();
+  }
+  
+  /* Check fields of note parameter */
+  if (pn->dur < -(INT32_MAX)) {
+    abort();
+  }
+  if ((pn->pitch < NMF_MINPITCH) || (pn->pitch > NMF_MAXPITCH)) {
+    abort();
+  }
+  if (pn->art > NMF_MAXART) {
+    abort();
+  }
+  if (pn->sect >= pd->sect_count) {
+    abort();
+  }
+  if (pn->t < nmf_offset(pd, pn->sect)) {
+    abort();
+  }
+  
+  /* Only proceed if room for another note; otherwise, fail */
+  if (pd->note_count < NMF_MAXNOTE) {
+    
+    /* We have room for another note -- check if capacity of note table
+     * needs to be expanded */
+    if (pd->note_count >= pd->note_cap) {
+      
+      /* We need to expand capacity -- first, try doubling */
+      newcap = pd->note_cap * 2;
+      
+      /* If doubling is less than initial capacity, set to initial
+       * capacity */
+      if (newcap < NMF_NOTEALLOC_INIT) {
+        newcap = NMF_NOTEALLOC_INIT;
+      }
+      
+      /* If doubling exceeds maximum note count, set to maximum note
+       * count */
+      if (newcap > NMF_MAXNOTE) {
+        newcap = NMF_MAXNOTE;
+      }
+      
+      /* Reallocate with the new capacity */
+      pd->pNote = (NMF_NOTE *) realloc(
+                          pd->pNote,
+                          newcap * sizeof(NMF_NOTE));
+      if (pd->pNote == NULL) {
+        abort();
+      }
+      memset(
+          &((pd->pNote)[pd->note_cap]),
+          0,
+          (newcap - pd->note_cap) * sizeof(NMF_NOTE));
+      
+      /* Update capacity variable */
+      pd->note_cap = newcap;
+    }
+    
+    /* Add the new note to the table */
+    memcpy(&((pd->pNote)[pd->note_count]), pn, sizeof(NMF_NOTE));
+    (pd->note_count)++;
+    
+  } else {
+    /* Note table is full */
+    status = 0;
+  }
+  
+  /* Return status */
+  return status;
+}
+
+/*
+ * nmf_rebase function.
+ */
+void nmf_rebase(NMF_DATA *pd, int basis) {
+  
+  /* Check parameters */
+  if (pd == NULL) {
+    abort();
+  }
+  if ((basis != NMF_BASIS_Q96) &&
+      (basis != NMF_BASIS_44100) &&
+      (basis != NMF_BASIS_48000)) {
+    abort();
+  }
+  
+  /* Change the basis */
+  pd->basis = (int32_t) basis;
+}
+
+/*
+ * nmf_sort function.
+ */
+void nmf_sort(NMF_DATA *pd) {
+  
+  /* Check parameter */
+  if (pd == NULL) {
+    abort();
+  }
+  
+  /* Only proceed if at least two notes */
+  if (pd->note_count > 1) {
+  
+    /* Sort the array of note events */
+    qsort(
+        (void *) pd->pNote,
+        (size_t) pd->note_count,
+        sizeof(NMF_NOTE),
+        &nmf_cmp);
+  }
+}
+
+/*
+ * nmf_serialize function.
+ */
+int nmf_serialize(NMF_DATA *pd, FILE *pf) {
+  
+  int status = 1;
+  int32_t i = 0;
+  NMF_NOTE *pn = NULL;
+  
+  /* Check parameters */
+  if ((pd == NULL) || (pf == NULL)) {
+    abort();
+  }
+  
+  /* Only proceed if at least one note */
+  if (pd->note_count > 0) {
+    
+    /* Write the NMF signatures */
+    nmf_writeUint32(pf, (uint32_t) NMF_SIGPRI);
+    nmf_writeUint32(pf, (uint32_t) NMF_SIGSEC);
+    
+    /* Write the quantum basis */
+    nmf_writeUint16(pf, (uint16_t) pd->basis);
+    
+    /* Write the section count and note counts */
+    nmf_writeUint16(pf, (uint16_t) pd->sect_count);
+    nmf_writeUint32(pf, (uint32_t) pd->note_count);
+    
+    /* Write the section table */
+    for(i = 0; i < pd->sect_count; i++) {
+      nmf_writeUint32(pf, (uint32_t) ((pd->pSect)[i]));
+    }
+    
+    /* Write each note */
+    for(i = 0; i < pd->note_count; i++) {
+      
+      /* Get pointer to current note */
+      pn = &((pd->pNote)[i]);
+      
+      /* Serialize the structure */
+      nmf_writeUint32(pf, (uint32_t) pn->t);
+      nmf_writeBias32(pf, pn->dur);
+      nmf_writeBias16(pf, pn->pitch);
+      nmf_writeUint16(pf, pn->art);
+      nmf_writeUint16(pf, pn->sect);
+      nmf_writeUint16(pf, pn->layer_i);
+    }
+  
+  } else {
+    /* No notes have been defined */
+    status = 0;
+  }
+  
+  /* Return status */
+  return status;
 }
