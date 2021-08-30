@@ -27,7 +27,7 @@
  * second.  You can use regular NMF utilities such as nmfrate to convert
  * an NMF graph file with a 96 quanta per quarter basis into a
  * fixed-rate basis.  In order for the graphs to be synchronized with
- * the music, use the same operations that are used to convert the
+ * the music, use the same operation(s) that are used to convert the
  * quantum basis of the main music.
  * 
  * Within the NMF file in graph format, sections and section numbers are
@@ -46,50 +46,54 @@
  * 
  *   ARTICULATION '0':  Constant dynamic
  *   ARTICULATION '1':  Dynamic ramp (cresc. or dim.)
- *   ARTICULATION 'A':  Set high bits of multiplier
- *   ARTICULATION 'B':  Set low bits of multiplier
  * 
- * Articulation keys 'A' and 'B' must have a pitch in numeric range
- * zero up to and including 31.  They are used to set the five most
- * significant or five least significant bits of a 10-bit register that
- * stores one less than the intensity multiplier for the layer (range
- * one up to and including 1024).  For each layer, either exactly one
- * note with articulation key 'A' is present somewhere in the file and
- * exactly one note with articulation key 'B' is present somewhere in
- * the file, or neither articulation key is present for that layer in
- * the file, in which case the multiplier is assumed to be 1024.  The
- * time offsets and durations of notes with articulation keys 'A' and
- * 'B' are irrelevant and ignored.
+ * All notes must have one of these two articulations.  In addition, the
+ * last note in each layer must have articulation '0'.
  * 
- * All other notes must have articulation keys '0' or '1', indicating
- * constant dynamics or dynamic ramps.  Within each layer, the following
- * rules must be observed.
+ * The pitch of a note selects the dynamic level, as shown below:
  * 
- *   (1) There must be a dynamic at time t=0.
+ *   Letter | Number | Dynamic | Linear
+ *   =======|========|=========|=======
+ *      D   |    -10 |   fff   |     1
+ *      C   |    -12 |   ff    |   8/9
+ *      B   |     -1 |   f     |   7/9
+ *      A   |     -3 |   mf    |   2/3
+ *      e   |      4 |   (-)   |   5/9
+ *      a   |      9 |   mp    |   4/9
+ *      b   |     11 |   p     |   1/3
+ *      c   |      0 |   pp    |   2/9
+ *      d   |      2 |   ppp   |   1/9
  * 
- *   (2) The last dynamic must be constant.
+ * Each note must have one of these pitches, selecting a dynamic.  The
+ * dynamics will be scaled linear in range [0.0, 1.0], as shown in the
+ * table above.  The linear range will then be optionally gamma-
+ * corrected according to the gamma value passed as a parameter to this
+ * program.  The resulting gamma-corrected range [0.0, 1.0] will be
+ * mapped to integer range [0, 1024] to yield the intensity values used
+ * in the graph.
  * 
- *   (3) Before any ramp dynamic, there may optionally be a single grace
- *       note at offset -1, which must have articulation key '1'.
+ * The duration of the note is ignored, unless it is a grace note.  Only
+ * a grace note offset of zero (duration -1) is allowed; other grace
+ * note offsets are illegal.  Grace notes must have an articulation key
+ * of '1'.  Within each layer, grace notes must have the same "t" offset
+ * as a non-grace note that has articulation key '1', and there may be
+ * at most one grace note for each "t" offset.
  * 
- *   (4) The pitches of each dynamic and grace note must be in the range
- *       [-7, 7], which is F up to g with middle c in the middle.
+ * The "t" value of the note indicates when the dynamic occurs.  There
+ * must be a note at time t=0 in each layer.  Within each layer, there
+ * may be at most one non-grace note at each "t" offset.
  * 
- *   (5) There may be at most one dynamic at each t, except for the
- *       special case of grace notes given in (3) above.
+ * For ramp dynamics, the length of the ramp is up to the next dynamic
+ * in the layer.  (There will always be a next dynamic because the last
+ * dynamic in each layer must be constant.)  If the ramp dynamic does
+ * not have an attached grace note, then the pitch of the ramp dynamic
+ * gives the starting intensity, and the ending intensity is the
+ * starting intensity of the next dynamic.  If the ramp dynamic has an
+ * attached grace note, the grace note pitch gives the starting
+ * intensity and the non-grace pitch gives the ending intensity.
  * 
- * Durations of notes are irrelevant and ignored, except for grace note
- * offsets.  The length of ramps is always up to the next dynamic.
- * 
- * For ramps that have a grace note before them, the grace note gives
- * the starting intensity of the ramp and the main note gives the ending
- * intensity of the ramp.  For ramps that have no grace note, the ending
- * intensity is the starting intensity of the next dynamic.
- * 
- * The pitch range [-7, 7] is mapped linearly to range [0, 1.0] (where
- * middle C is then mapped to 0.5).  Then, gamma correction is
- * optionally applied to get a corrected range [0, 1.0].  This is then
- * mapped to integer range [0, 1024] to get the output intensity.
+ * The LAYER_MAX and LAYER_MAXDYN constants impose limits on how many
+ * layers there may be and how many dynamics may be in each layer.
  * 
  * Compilation
  * -----------
@@ -118,20 +122,22 @@
  */
 #define ARTKEY_CONSTANT   (0)   /* Constant dynamic */
 #define ARTKEY_RAMP       (1)   /* Ramp dynamic */
-#define ARTKEY_HIGH_MUL   (10)  /* Set high multiplier */
-#define ARTKEY_LOW_MUL    (11)  /* Set low multiplier */
 
 /*
- * Multiplier pitch range.
+ * Range of decoded dynamic levels.
  */
-#define MUL_MINPITCH (0)
-#define MUL_MAXPITCH (31)
+#define DYNL_MIN  (1)
+#define DYNL_MAX  (9)
 
 /*
- * Dynamic pitch range.
+ * The maximum number of dynamics that may be within a layer.
  */
-#define DYN_MINPITCH (-7)
-#define DYN_MAXPITCH (7)
+#define LAYER_MAXDYN (4000)
+
+/*
+ * The maximum zero-based layer index.
+ */
+#define LAYER_MAX (255)
 
 /*
  * Type definitions
@@ -139,13 +145,118 @@
  */
 
 /*
- * A dynamic record.
+ * DYNREC, a dynamic record.
+ * 
+ * A structure prototype proceeds the definition so that the structure
+ * can be referred to within the definition.
+ */
+struct DYNREC_TAG;
+typedef struct DYNREC_TAG DYNREC;
+struct DYNREC_TAG {
+  
+  /*
+   * Pointer to the next dynamic record in the layer, or NULL if this
+   * is the last dynamic record.
+   */
+  DYNREC *pNext;
+  
+  /*
+   * The time offset of this dynamic.
+   */
+  int32_t t;
+  
+  /*
+   * For ramp dynamics, "a" is the starting intensity, in range 1-9.
+   * 
+   * For constant dynamics, "a" is set to zero.
+   */
+  uint8_t a;
+  
+  /*
+   * For constant dynamics, "b" is the intensity, in range 1-9.
+   * 
+   * For ramp dynamics, if "b" is in range 1-9, then "b" is the ending
+   * intensity of the ramp.  If "b" is zero for ramp dynamics, it means
+   * that the ending intensity of the ramp is the starting intensity of
+   * the next dynamic.
+   */
+  uint8_t b;
+};
+
+/*
+ * A layer register, used for building layer information.
  */
 typedef struct {
   
-  /* @@TODO: */
+  /*
+   * The total number of dynamics in this layer.
+   */
+  int32_t dcount;
   
-} DYNREC;
+  /*
+   * The time offset of the buffered grace note, or -1 if no grace note
+   * is currently buffered.
+   */
+  int32_t gtime;
+  
+  /*
+   * The grace note dynamic in range 1-9, or zero if no grace note is
+   * currently buffered.
+   */
+  uint8_t gval;
+  
+  /*
+   * Pointer to the first dynamic record in this layer.
+   * 
+   * Only valid if dcount is greater than zero.
+   */
+  DYNREC *pFirst;
+  
+  /*
+   * Pointer to the last dynamic record in this layer.
+   * 
+   * Only valid if dcount is greater than zero.
+   */
+  DYNREC *pLast;
+  
+} LAYERREG;
+
+/*
+ * Static data
+ * ===========
+ */
+
+/*
+ * Flag indicating whether the layer table has been initialized.
+ * 
+ * Use init_table() to initialize the table if necessary.
+ */
+static int m_tinit = 0;
+
+/*
+ * The table of layer registers.
+ * 
+ * Only valid if m_tinit.
+ */
+static LAYERREG m_t[LAYER_MAX + 1];
+
+/*
+ * Flag indicating whether the level table has been initialized.
+ * 
+ * Use init_level() to initialize the table.
+ */
+static int m_level_init = 0;
+
+/*
+ * The level table.
+ * 
+ * Only valid if m_level_init.
+ * 
+ * Use an index of [DYNL_MIN, DYNL_MAX] into this table to get the
+ * output level to write into the file.  Indices below DYNL_MIN are
+ * unused.
+ */
+static int m_level[DYNL_MAX + 1];
 
 /*
  * Local functions
@@ -153,74 +264,726 @@ typedef struct {
  */
 
 /* Prototypes */
-static void layerInit(int32_t layer_i);
-static int layerSetMul(int32_t layer_i, int32_t val, int high);
+static int32_t pitchToLevel(int32_t p);
+
+static void init_level(double g);
+static void init_table(void);
+
 static int layerHasGrace(int32_t layer_i);
 static int32_t layerGraceTime(int32_t layer_i);
-static int layerFirstNote(int32_t layer_i);
+static int layerIsEmpty(int32_t layer_i);
 static int32_t layerLastTime(int32_t layer_i);
 static int layerDynC(int32_t layer_i, int32_t t, int32_t val);
 static void layerGrace(int32_t layer_i, int32_t t, int32_t val);
 static int layerDynR(int32_t layer_i, int32_t t, int32_t val);
+static int layerDangling(int32_t layer_i);
 
-static int layerDanglingMul(void);
-static int layerDanglingGrace(void);
-static int layerEmpty(void);
-
-static int writeLayers(FILE *pf);
+static void writeLayer(FILE *pf, int32_t layer_i);
 
 static int parseInt(const char *pstr, int32_t *pv);
 
-/* @@TODO: */
-static void layerInit(int32_t layer_i) {
-  /* @@TODO: */
+/*
+ * Decode a pitch to a dynamic level.
+ * 
+ * The return value is in range [DYNL_MIN, DYNL_MAX] unless the pitch is
+ * not a valid dynamic level, in which case -1 is returned.
+ * 
+ * Parameters:
+ * 
+ *   p - the pitch to look up
+ * 
+ * Return:
+ * 
+ *   the dynamic level, or -1 if pitch not valid
+ */
+static int32_t pitchToLevel(int32_t p) {
+  
+  int32_t result = 0;
+  
+  switch (p) {
+    
+    case -10:
+      result = 9;
+      break;
+    
+    case -12:
+      result = 8;
+      break;
+    
+    case -1:
+      result = 7;
+      break;
+    
+    case -3:
+      result = 6;
+      break;
+    
+    case 4:
+      result = 5;
+      break;
+    
+    case 9:
+      result = 4;
+      break;
+      
+    case 11:
+      result = 3;
+      break;
+    
+    case 0:
+      result = 2;
+      break;
+    
+    case 2:
+      result = 1;
+      break;
+    
+    default:
+      result = -1;
+  }
+  
+  return result;
 }
-static int layerSetMul(int32_t layer_i, int32_t val, int high) {
-  /* @@TODO: */
-  return 1;
+
+/*
+ * Initialize the level table using the given gamma value.
+ * 
+ * g must be finite and greater than zero.
+ * 
+ * The level table must not already be initialized, or a fault occurs.
+ * 
+ * Parameters:
+ * 
+ *   g - the gamma value
+ */
+static void init_level(double g) {
+  
+  int x = 0;
+  double f = 0;
+  
+  /* Check parameter */
+  if (!isfinite(g)) {
+    abort();
+  }
+  if (!(g > 0.0)) {
+    abort();
+  }
+  
+  /* Clear table */
+  memset(&m_level, 0, (DYNL_MAX + 1) * sizeof(int));
+  
+  /* Compute table values */
+  for(x = DYNL_MIN; x <= DYNL_MAX; x++) {
+    
+    /* Compute floating-point value */
+    f = (((double) x) / ((double) DYNL_MAX));
+    if (g != 1.0) {
+      f = pow(f, g);
+    }
+    f = f * 1024.0;
+    if (!isfinite(f)) {
+      abort();  /* numeric error */
+    }
+    if (f < 0.0) {
+      f = 0.0;
+    } else if (f > 1024.0) {
+      f = 1024.0;
+    }
+    
+    /* Set integer value */
+    m_level[x] = (int) f;
+  }
+  
+  /* Set initialization flag */
+  m_level_init = 1;
 }
+
+/*
+ * Initialize the layer table if not already initialized.
+ */
+static void init_table(void) {
+  
+  int32_t i = 0;
+  
+  /* Only proceed if not initialized */
+  if (!m_tinit) {
+    
+    /* Clear the table */
+    memset(&m_t, 0, (LAYER_MAX + 1) * sizeof(LAYERREG));
+    
+    /* Set each dcount field to zero, and clear each gtime and gval
+     * field */
+    for(i = 0; i <= LAYER_MAX; i++) {
+      (m_t[i]).dcount = 0;
+      (m_t[i]).gtime = -1;
+      (m_t[i]).gval = 0;
+    }
+    
+    /* Set initialization flag */
+    m_tinit = 1;
+  }
+}
+
+/*
+ * Check whether a given layer index has a buffered grace note.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to check
+ * 
+ * Return:
+ * 
+ *   non-zero if buffered grace note, zero if not
+ */
 static int layerHasGrace(int32_t layer_i) {
-  /* @@TODO: */
-  return 0;
+  
+  int result = 0;
+  
+  /* Check parameter */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* See if layer has grace note */
+  if ((m_t[layer_i]).gval != 0) {
+    result = 1;
+  }
+  
+  /* Return result */
+  return result;
 }
+
+/*
+ * Return the time value of the buffered grace note in the given layer.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * A fault occurs if no grace note is buffered in that layer.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to check
+ * 
+ * Return:
+ * 
+ *   the time value of the buffered grace note
+ */
 static int32_t layerGraceTime(int32_t layer_i) {
-  /* @@TODO: */
-  return 0;
+  
+  int32_t result = 0;
+  
+  /* Check parameter */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* Get time value */
+  result = (m_t[layer_i]).gtime;
+  if (result < 0) {
+    abort();  /* no buffered grace note */
+  }
+  
+  /* Return result */
+  return result;
 }
-static int layerFirstNote(int32_t layer_i) {
-  /* @@TODO: */
-  return 0;
+
+/*
+ * Check whether the given layer is empty, meaning it does not have any
+ * dynamics.
+ * 
+ * A layer can be empty even if it has a buffered grace note.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to check
+ * 
+ * Return:
+ * 
+ *   non-zero if layer empty, zero if not
+ */
+static int layerIsEmpty(int32_t layer_i) {
+  
+  int result = 0;
+  
+  /* Check parameter */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* See if layer is empty */
+  if ((m_t[layer_i]).dcount < 1) {
+    result = 1;
+  }
+  
+  /* Return result */
+  return result;
 }
+
+/*
+ * Get the time offset of the last dynamic that was added to the given
+ * layer.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * A fault occurs if the indicated layer is empty.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to check
+ * 
+ * Return:
+ * 
+ *   the time offset of the last dynamic that was added
+ */
 static int32_t layerLastTime(int32_t layer_i) {
-  /* @@TODO: */
-  return 0;
+  
+  /* Check parameter */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* Make sure requested layer is not empty */
+  if ((m_t[layer_i]).dcount < 1) {
+    abort();  /* layer is empty */
+  }
+  
+  /* Return result */
+  return ((m_t[layer_i]).pLast)->t;
 }
+
+/*
+ * Add a constant dynamic to the given layer.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * t must be zero or greater.  If the layer is currently empty, t must
+ * be zero.  If the layer is not currently empty, t must be greater than
+ * the t of the last dynamic that was added to the layer.  A fault
+ * occurs if these conditions do not hold.
+ * 
+ * val must be in range [DYNL_MIN, DYNL_MAX].
+ * 
+ * There must not currently be a grace note buffered in the layer, or a
+ * fault occurs.
+ * 
+ * If adding the dynamic would result in too many dynamics in the layer,
+ * the function fails.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to add the constant dynamic to
+ * 
+ *   t - the time offset of the new dynamic
+ * 
+ *   val - the intensity of the new dynamic
+ * 
+ * Return:
+ * 
+ *   non-zero if successful, zero if too many dynamics in layer
+ */
 static int layerDynC(int32_t layer_i, int32_t t, int32_t val) {
-  /* @@TODO: */
-  return 1;
+  
+  int status = 1;
+  DYNREC *dr = NULL;
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* Check parameters */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  if (t < 0) {
+    abort();
+  }
+  if (layerIsEmpty(layer_i)) {
+    if (t != 0) {
+      abort();
+    }
+  } else {
+    if (t <= layerLastTime(layer_i)) {
+      abort();
+    }
+  }
+  if ((val < DYNL_MIN) || (val > DYNL_MAX)) {
+    abort();
+  }
+  
+  /* Check that no grace note currently buffered */
+  if (layerHasGrace(layer_i)) {
+    abort();
+  }
+  
+  /* Only proceed if room for another dynamic */
+  if ((m_t[layer_i]).dcount < LAYER_MAXDYN) {
+    
+    /* Allocate new dynamic record */
+    dr = (DYNREC *) malloc(sizeof(DYNREC));
+    if (dr == NULL) {
+      abort();
+    }
+    memset(dr, 0, sizeof(DYNREC));
+    
+    /* Set variables */
+    dr->pNext = NULL;
+    dr->t = t;
+    dr->a = 0;
+    dr->b = (uint8_t) val;
+    
+    /* Check whether this is the first record */
+    if ((m_t[layer_i]).dcount < 1) {
+      /* First record -- set both pFirst and pLast */
+      (m_t[layer_i]).pFirst = dr;
+      (m_t[layer_i]).pLast = dr;
+      
+    } else {
+      /* Not the first record -- link new record into layer */
+      ((m_t[layer_i]).pLast)->pNext = dr;
+      (m_t[layer_i]).pLast = dr;
+    }
+    
+    /* Increase count */
+    ((m_t[layer_i]).dcount)++;
+    
+  } else {
+    /* Layer is full */
+    status = 0;
+  }
+  
+  /* Return status */
+  return status;
 }
+
+/*
+ * Buffer a grace note in the given layer.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * t must be zero or greater.  If the layer is currently empty, t must
+ * be zero.  If the layer is not currently empty, t must be greater than
+ * the t of the last dynamic that was added to the layer.  A fault
+ * occurs if these conditions do not hold.
+ * 
+ * val must be in range [DYNL_MIN, DYNL_MAX].
+ * 
+ * There must not currently be a grace note buffered in the layer, or a
+ * fault occurs.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to add the constant dynamic to
+ * 
+ *   t - the time offset of the new dynamic
+ * 
+ *   val - the intensity of the new dynamic
+ */
 static void layerGrace(int32_t layer_i, int32_t t, int32_t val) {
-  /* @@TODO: */
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* Check parameters */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  if (t < 0) {
+    abort();
+  }
+  if (layerIsEmpty(layer_i)) {
+    if (t != 0) {
+      abort();
+    }
+  } else {
+    if (t <= layerLastTime(layer_i)) {
+      abort();
+    }
+  }
+  if ((val < DYNL_MIN) || (val > DYNL_MAX)) {
+    abort();
+  }
+  
+  /* Check that no grace note currently buffered */
+  if (layerHasGrace(layer_i)) {
+    abort();
+  }
+  
+  /* Buffer the grace note */
+  (m_t[layer_i]).gtime = t;
+  (m_t[layer_i]).gval = (uint8_t) val;
 }
+
+/*
+ * Add a ramp dynamic to the given layer.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * t must be zero or greater.  If the layer is currently empty, t must
+ * be zero.  If the layer is not currently empty, t must be greater than
+ * the t of the last dynamic that was added to the layer.  If there is a
+ * grace note buffered in the layer, t must equal the time value of the
+ * buffered grace note.  A fault occurs if these conditions do not hold.
+ * 
+ * val must be in range [DYNL_MIN, DYNL_MAX].
+ * 
+ * If adding the dynamic would result in too many dynamics in the layer,
+ * the function fails.
+ * 
+ * If there is no grace note buffered, a ramp dynamic will be added,
+ * starting at the given val intensity and proceeding to the starting
+ * intensity of the next dynamic that will be added to the layer.  If a
+ * grace note is buffered, the grace note gives the starting intensity,
+ * val gives the ending intensity, and the grace note buffer is then
+ * cleared.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to add the ramp dynamic to
+ * 
+ *   t - the time offset of the new dynamic
+ * 
+ *   val - the intensity of the new dynamic (see above)
+ * 
+ * Return:
+ * 
+ *   non-zero if successful, zero if too many dynamics in layer
+ */
 static int layerDynR(int32_t layer_i, int32_t t, int32_t val) {
-  /* @@TODO: */
-  return 1;
+  
+  int status = 1;
+  DYNREC *dr = NULL;
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* Check parameters */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  if (t < 0) {
+    abort();
+  }
+  if (layerIsEmpty(layer_i)) {
+    if (t != 0) {
+      abort();
+    }
+  } else {
+    if (t <= layerLastTime(layer_i)) {
+      abort();
+    }
+  }
+  if (layerHasGrace(layer_i)) {
+    if (t != layerGraceTime(layer_i)) {
+      abort();
+    }
+  }
+  if ((val < DYNL_MIN) || (val > DYNL_MAX)) {
+    abort();
+  }
+  
+  /* Only proceed if room for another dynamic */
+  if ((m_t[layer_i]).dcount < LAYER_MAXDYN) {
+    
+    /* Allocate new dynamic record */
+    dr = (DYNREC *) malloc(sizeof(DYNREC));
+    if (dr == NULL) {
+      abort();
+    }
+    memset(dr, 0, sizeof(DYNREC));
+    
+    /* Set variables, depending on whether buffered grace note */
+    if (layerHasGrace(layer_i)) {
+      /* Buffered grace note */
+      dr->pNext = NULL;
+      dr->t = t;
+      dr->a = (m_t[layer_i]).gval;
+      dr->b = (uint8_t) val;
+      
+      /* Clear buffered grace note */
+      (m_t[layer_i]).gtime = -1;
+      (m_t[layer_i]).gval = 0;
+      
+    } else {
+      /* No buffered grace note */
+      dr->pNext = NULL;
+      dr->t = t;
+      dr->a = (uint8_t) val;
+      dr->b = 0;
+    }
+    
+    /* Check whether this is the first record */
+    if ((m_t[layer_i]).dcount < 1) {
+      /* First record -- set both pFirst and pLast */
+      (m_t[layer_i]).pFirst = dr;
+      (m_t[layer_i]).pLast = dr;
+      
+    } else {
+      /* Not the first record -- link new record into layer */
+      ((m_t[layer_i]).pLast)->pNext = dr;
+      (m_t[layer_i]).pLast = dr;
+    }
+    
+    /* Increase count */
+    ((m_t[layer_i]).dcount)++;
+    
+  } else {
+    /* Layer is full */
+    status = 0;
+  }
+  
+  /* Return status */
+  return status;
 }
-static int layerDanglingMul(void) {
-  /* @@TODO: */
-  return 0;
+
+/*
+ * Check whether a given layer is "dangling."
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * A layer is dangling if it has a buffered grace note, or if there is
+ * at least one dynamic in the layer and the last dynamic is a ramp
+ * dynamic.
+ * 
+ * Parameters:
+ * 
+ *   layer_i - the layer to check
+ * 
+ * Return:
+ * 
+ *   non-zero if layer is dangling, zero if not
+ */
+static int layerDangling(int32_t layer_i) {
+  
+  int result = 0;
+  
+  /* Check parameter */
+  if ((layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  
+  /* Initialize table if necessary */
+  init_table();
+  
+  /* See if layer is dangling */
+  if (layerHasGrace(layer_i)) {
+    result = 1;
+  } else if (!layerIsEmpty(layer_i)) {
+    if (((m_t[layer_i]).pLast)->a != 0) {
+      result = 1;
+    }
+  }
+  
+  /* Return result */
+  return result;
 }
-static int layerDanglingGrace(void) {
-  /* @@TODO: */
-  return 0;
-}
-static int layerEmpty(void) {
-  /* @@TODO: */
-  return 0;
-}
-static int writeLayers(FILE *pf) {
-  /* @@TODO: */
-  return 1;
+
+/*
+ * Write a layer in textual Retro format to the given file.
+ * 
+ * pf must be open for writing or undefined behavior occurs.  Writing is
+ * fully sequential.
+ * 
+ * layer_i must be in range [0, LAYER_MAX].
+ * 
+ * A fault occurs if the given layer is dangling or if it is empty.  Use
+ * layerDangling() and layerIsEmpty() to check for these conditions.
+ * 
+ * m_level_init must be non-zero, indicating that the level table has
+ * been initialized.  A fault occurs if the level table is not yet
+ * initialized.
+ * 
+ * Layers are always written with a layer multiplier of 1024.  If a
+ * different multiplier is desired, you can derive a new layer from the
+ * layer that is output.
+ * 
+ * Parameters:
+ * 
+ *   pf - the output file
+ * 
+ *   layer_i - the layer to write
+ */
+static void writeLayer(FILE *pf, int32_t layer_i) {
+  
+  LAYERREG *plr = NULL;
+  DYNREC *pdr = NULL;
+  DYNREC *pdn = NULL;
+  int start = 0;
+  int end = 0;
+  
+  /* Check parameters */
+  if ((pf == NULL) || (layer_i < 0) || (layer_i > LAYER_MAX)) {
+    abort();
+  }
+  if (layerIsEmpty(layer_i) || layerDangling(layer_i)) {
+    abort();
+  }
+  if (!m_level_init) {
+    abort();
+  }
+  
+  /* Get pointer to layer register */
+  plr = &(m_t[layer_i]);
+  
+  /* Write the opening line */
+  fprintf(pf, "[\n");
+  
+  /* Go through all dynamics */
+  for(pdr = plr->pFirst; pdr != NULL; pdr = pdr->pNext) {
+  
+    /* If not first, write comma and line break */
+    if (pdr != plr->pFirst) {
+      fprintf(pf, ",\n");
+    }
+  
+    /* Determine kind of dynamic */
+    if (pdr->a == 0) {
+      /* Constant dynamic -- get level */
+      start = m_level[pdr->b];
+      
+      /* Write command */
+      fprintf(pf, "  %ld %d lc", (long) (pdr->t), start);
+      
+    } else if (pdr->b == 0) {
+      /* Ramp with end value same as next start value -- get levels */
+      start = m_level[pdr->a];
+      
+      pdn = pdr->pNext;
+      if (pdn->a == 0) {
+        end = m_level[pdn->b];
+      } else {
+        end = m_level[pdn->a];
+      }
+      
+      /* Write command */
+      fprintf(pf, "  %ld %d %d lr", (long) (pdr->t), start, end);
+    
+    } else {
+      /* Ramp fully specified -- get levels */
+      start = m_level[pdr->a];
+      end = m_level[pdr->b];
+      
+      /* Write command */
+      fprintf(pf, "  %ld %d %d lr", (long) (pdr->t), start, end);
+    }
+  }
+  
+  /* Write the closing line */
+  fprintf(pf, "\n] 1024 %ld layer\n", (long) (layer_i + 1));
 }
 
 /*
@@ -341,6 +1104,7 @@ int main(int argc, char *argv[]) {
   int basis = 0;
   int32_t i = 0;
   int32_t notes = 0;
+  int32_t lvl = 0;
   NMF_NOTE n;
   
   /* Initialize structures */
@@ -403,6 +1167,11 @@ int main(int argc, char *argv[]) {
     }
   }
   
+  /* Initialize level table */
+  if (status) {
+    init_level(g);
+  }
+  
   /* Parse input */
   if (status) {
     pd = nmf_parse(stdin);
@@ -434,24 +1203,56 @@ int main(int argc, char *argv[]) {
       /* Get the current note */
       nmf_get(pd, i, &n);
       
-      /* First of all, initialize layer if necessary */
-      layerInit(n.layer_i);
+      /* Determine level from pitch */
+      lvl = pitchToLevel(n.pitch);
+      if (lvl < 0) {
+        status = 0;
+        fprintf(stderr, "%s: Invalid pitch encountered!\n", pModule);
+      }
       
-      /* Determine what to do based on articulation */
-      if (n.art == ARTKEY_CONSTANT) {
-        /* Constant dynamic -- check pitch range */
-        if ((n.pitch < DYN_MINPITCH) || (n.pitch > DYN_MAXPITCH)) {
+      /* Check layer index */
+      if (status) {
+        if (n.layer_i > LAYER_MAX) {
           status = 0;
-          fprintf(stderr, "%s: Invalid dynamic range!\n", pModule);
+          fprintf(stderr, "%s: Maximum layer index exceeded!\n",
+                  pModule);
         }
-        
-        /* Make sure duration is not grace note */
-        if (status && (n.dur < 0)) {
+      }
+      
+      /* If note is a grace note, make sure articulation indicates a
+       * ramp, and also that grace note offset is -1 */
+      if (status && (n.dur < 0)) {
+        if (n.art != ARTKEY_RAMP) {
           status = 0;
-          fprintf(stderr, "%s: Invalid grace note!\n", pModule);
+          fprintf(stderr, "%s: Grace note must be part of ramp!\n",
+                  pModule);
         }
-        
-        /* Make sure no grace note is buffered */
+        if (status && (n.dur != -1)) {
+          status = 0;
+          fprintf(stderr, "%s: Only grace note offset -1 is allowed!\n",
+                  pModule);
+        }
+      }
+      
+      /* If this is first note, make sure it has t=0; otherwise, make
+       * sure t value of this note is greater than last time value */
+      if (status) {
+        if (layerIsEmpty(n.layer_i)) {
+          if (n.t != 0) {
+            status = 0;
+            fprintf(stderr, "%s: Missing t=0 dynamic!\n", pModule);
+          }
+        } else {
+          if (n.t <= layerLastTime(n.layer_i)) {
+            status = 0;
+            fprintf(stderr, "%s: Simultaneous dynamics!\n", pModule);
+          }
+        }
+      }
+      
+      /* Determine what to do based on articulation and duration */
+      if (status && (n.art == ARTKEY_CONSTANT)) {
+        /* Constant dynamic -- make sure no grace note is buffered */
         if (status) {
           if (layerHasGrace(n.layer_i)) {
             status = 0;
@@ -460,125 +1261,46 @@ int main(int argc, char *argv[]) {
           }
         }
         
-        /* If this is first note, make sure it has t=0; otherwise, make
-         * sure t value of this note is greater than last time value */
-        if (status) {
-          if (layerFirstNote(n.layer_i)) {
-            if (n.t != 0) {
-              status = 0;
-              fprintf(stderr, "%s: Missing t=0 dynamic!\n", pModule);
-            }
-          } else {
-            if (n.t <= layerLastTime(n.layer_i)) {
-              status = 0;
-              fprintf(stderr, "%s: Simultaneous dynamics!\n", pModule);
-            }
-          }
-        }
-        
         /* Report constant dynamic */
         if (status) {
-          if (!layerDynC(n.layer_i, n.t, n.pitch)) {
+          if (!layerDynC(n.layer_i, n.t, lvl)) {
             status = 0;
             fprintf(stderr, "%s: Layer is too long!\n");
           }
         }
-        
-      } else if (n.art == ARTKEY_RAMP) {
-        /* Ramp dynamic -- check pitch range */
-        if ((n.pitch < DYN_MINPITCH) || (n.pitch > DYN_MAXPITCH)) {
+      
+      } else if (status && (n.dur < 0)) {
+        /* Grace note -- verify no grace note buffered */
+        if (layerHasGrace(n.layer_i)) {
           status = 0;
-          fprintf(stderr, "%s: Invalid dynamic range!\n", pModule);
+          fprintf(stderr, "%s: Multiple grace notes!\n", pModule);
         }
-        
-        /* If this is first note, make sure it has t=0; otherwise, make
-         * sure t value of this note is greater than last time value */
+          
+        /* Buffer grace note */
         if (status) {
-          if (layerFirstNote(n.layer_i)) {
-            if (n.t != 0) {
-              status = 0;
-              fprintf(stderr, "%s: Missing t=0 dynamic!\n", pModule);
-            }
-          } else {
-            if (n.t <= layerLastTime(n.layer_i)) {
-              status = 0;
-              fprintf(stderr, "%s: Simultaneous dynamics!\n", pModule);
-            }
-          }
+          layerGrace(n.layer_i, n.t, lvl);
         }
         
-        /* Handling depends on whether a grace note or not */
-        if (status && (n.dur >= 0)) {
-          /* Not a grace note -- if a grace note is buffered, make sure
-           * its t value matches that of this note */
-          if (layerHasGrace(n.layer_i)) {
-            if (layerGraceTime(n.layer_i) != n.t) {
-              status = 0;
-              fprintf(stderr, "%s: Grace note missing beat!\n",
-                      pModule);
-            }
-          }
-          
-          /* Report ramp dynamic */
-          if (status) {
-            if (!layerDynR(n.layer_i, n.t, n.pitch)) {
-              status = 0;
-              fprintf(stderr, "%s: Layer is too long!\n", pModule);
-            }
-          }
-          
-        } else if (status && (n.dur == -1)) {
-          /* Grace note -- verify no grace note buffered */
-          if (layerHasGrace(n.layer_i)) {
+      } else if (status && (n.art == ARTKEY_RAMP)) {
+        /* Ramp dynamic -- if a grace note is buffered, make sure its t
+         * value matches that of this note */
+        if (layerHasGrace(n.layer_i)) {
+          if (layerGraceTime(n.layer_i) != n.t) {
             status = 0;
-            fprintf(stderr, "%s: Multiple grace notes!\n", pModule);
+            fprintf(stderr, "%s: Grace note missing beat!\n",
+                    pModule);
           }
-          
-          /* Buffer grace note */
-          if (status) {
-            layerGrace(n.layer_i, n.t, n.pitch);
-          }
-          
-        } else if (status) {
-          /* Grace note offset greater than one -- not allowed */
-          status = 0;
-          fprintf(stderr, "%s: Grace offset greater than one!\n",
-                  pModule);
         }
-        
-      } else if (n.art == ARTKEY_HIGH_MUL) {
-        /* Set high multiplier -- check range */
-        if ((n.pitch < MUL_MINPITCH) || (n.pitch > MUL_MAXPITCH)) {
-          status = 0;
-          fprintf(stderr, "%s: Invalid multiplier range!\n", pModule);
-        }
-        
-        /* Set high multiplier */
+          
+        /* Report ramp dynamic */
         if (status) {
-          if (!layerSetMul(n.layer_i, n.pitch, 1)) {
+          if (!layerDynR(n.layer_i, n.t, lvl)) {
             status = 0;
-            fprintf(stderr, "%s: High multiplier already set!\n",
-              pModule);
+            fprintf(stderr, "%s: Layer is too long!\n", pModule);
           }
         }
         
-      } else if (n.art == ARTKEY_LOW_MUL) {
-        /* Set low multiplier -- check range */
-        if ((n.pitch < MUL_MINPITCH) || (n.pitch > MUL_MAXPITCH)) {
-          status = 0;
-          fprintf(stderr, "%s: Invalid multiplier range!\n", pModule);
-        }
-        
-        /* Set low multiplier */
-        if (status) {
-          if (!layerSetMul(n.layer_i, n.pitch, 0)) {
-            status = 0;
-            fprintf(stderr, "%s: Low multiplier already set!\n",
-              pModule);
-          }
-        }
-        
-      } else {
+      } else if (status) {
         /* Unrecognized articulation key */
         status = 0;
         fprintf(stderr, "%s: Unrecognized articulation key!\n",
@@ -592,35 +1314,22 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  /* Make sure no dangling multipliers */
+  /* Make sure no dangling layers */
   if (status) {
-    if (layerDanglingMul()) {
-      status = 0;
-      fprintf(stderr, "%s: Multipliers not well defined!\n", pModule);
+    for(i = 0; i <= LAYER_MAX; i++) {
+      if (layerDangling(i)) {
+        status = 0;
+        fprintf(stderr, "%s: Dangling layer!\n", pModule);
+      }
     }
   }
   
-  /* Make sure no dangling grace notes */
+  /* Write non-empty layers to output */
   if (status) {
-    if (layerDanglingGrace()) {
-      status = 0;
-      fprintf(stderr, "%s: Dangling grace note!\n", pModule);
-    }
-  }
-  
-  /* Make sure no empty layers */
-  if (status) {
-    if (layerEmpty()) {
-      status = 0;
-      fprintf(stderr, "%s: Empty layer!\n", pModule);
-    }
-  }
-  
-  /* Write layers to output */
-  if (status) {
-    if (!writeLayers(stdout)) {
-      status = 0;
-      fprintf(stderr, "%s: Dangling ramp!\n", pModule);
+    for(i = 0; i <= LAYER_MAX; i++) {
+      if (!layerIsEmpty(i)) {
+        writeLayer(stdout, i);
+      }
     }
   }
   
