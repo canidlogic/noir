@@ -15,7 +15,7 @@
  * 
  * This includes section index zero as the first section.
  */
-#define EVENT_MAXSECT (INT32_C(65536))
+#define EVENT_MAXSECT (INT32_C(65535))
 
 /*
  * The maximum number of notes that may be defined.
