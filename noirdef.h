@@ -35,6 +35,12 @@
 #define ERR_RIGHT     (9)   /* Right closing symbol without opener */
 #define ERR_UNCLOSED  (10)  /* Unclosed group */
 #define ERR_TOODEEP   (11)  /* Too much nesting */
+#define ERR_INGRACE   (12)  /* Grace note in rhythm group */
+#define ERR_LONGDUR   (13)  /* Duration too long */
+#define ERR_BADDUR    (14)  /* Invalid duration */
+#define ERR_BADPITCH  (15)  /* Invalid pitch */
+#define ERR_PITCHR    (16)  /* Pitch out of range */
+#define ERR_BADOP     (17)  /* Invalid operation */
 
 /*
  * ASCII characters.
@@ -63,6 +69,11 @@
 #define ASCII_EQUALS  (0x3d)  /* = */
 #define ASCII_ATSIGN  (0x40)  /* @ */
 #define ASCII_A_UPPER (0x41)  /* A */
+#define ASCII_B_UPPER (0x42)  /* B */
+#define ASCII_C_UPPER (0x43)  /* C */
+#define ASCII_D_UPPER (0x44)  /* D */
+#define ASCII_E_UPPER (0x45)  /* E */
+#define ASCII_F_UPPER (0x46)  /* F */
 #define ASCII_G_UPPER (0x47)  /* G */
 #define ASCII_H_UPPER (0x48)  /* H */
 #define ASCII_N_UPPER (0x4e)  /* N */
@@ -70,11 +81,17 @@
 #define ASCII_S_UPPER (0x53)  /* S */
 #define ASCII_T_UPPER (0x54)  /* T */
 #define ASCII_X_UPPER (0x58)  /* X */
+#define ASCII_Z_UPPER (0x5a)  /* Z */
 #define ASCII_LSQUARE (0x5b)  /* [ */
 #define ASCII_BSLASH  (0x5c)  /* \ */
 #define ASCII_RSQUARE (0x5d)  /* ] */
 #define ASCII_CARET   (0x5e)  /* ^ */
 #define ASCII_A_LOWER (0x61)  /* a */
+#define ASCII_B_LOWER (0x62)  /* b */
+#define ASCII_C_LOWER (0x63)  /* c */
+#define ASCII_D_LOWER (0x64)  /* d */
+#define ASCII_E_LOWER (0x65)  /* e */
+#define ASCII_F_LOWER (0x66)  /* f */
 #define ASCII_G_LOWER (0x67)  /* g */
 #define ASCII_H_LOWER (0x68)  /* h */
 #define ASCII_N_LOWER (0x6e)  /* n */
@@ -82,6 +99,7 @@
 #define ASCII_S_LOWER (0x73)  /* s */
 #define ASCII_T_LOWER (0x74)  /* t */
 #define ASCII_X_LOWER (0x78)  /* x */
+#define ASCII_Z_LOWER (0x7a)  /* z */
 #define ASCII_LCURLY  (0x7b)  /* { */
 #define ASCII_RCURLY  (0x7d)  /* } */
 #define ASCII_TILDE   (0x7e)  /* ~ */
