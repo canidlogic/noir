@@ -58,6 +58,7 @@ static void report(NMF_DATA *pd, FILE *po);
 static void report(NMF_DATA *pd, FILE *po) {
   
   int32_t x = 0;
+  int basis = 0;
   int32_t scount = 0;
   int32_t ncount = 0;
   NMF_NOTE n;
@@ -70,9 +71,28 @@ static void report(NMF_DATA *pd, FILE *po) {
     abort();
   }
   
+  /* Get the basis */
+  basis = nmf_basis(pd);
+  
   /* Get section count and note count */
   scount = nmf_sections(pd);
   ncount = nmf_notes(pd);
+  
+  /* Print the basis */
+  fprintf(po, "BASIS   : ");
+  if (basis == NMF_BASIS_Q96) {
+    fprintf(po, "96 quanta per quarter\n");
+    
+  } else if (basis == NMF_BASIS_44100) {
+    fprintf(po, "44,100 quanta per second\n");
+    
+  } else if (basis == NMF_BASIS_48000) {
+    fprintf(po, "48,000 quanta per second\n");
+    
+  } else {
+    /* Unrecognized basis */
+    abort();
+  }
   
   /* Print the section and note counts */
   fprintf(po, "SECTIONS: %ld\n", (long) scount);
