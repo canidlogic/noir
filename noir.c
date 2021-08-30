@@ -195,6 +195,30 @@ static const char *err_string(int code) {
       ps = "Too much nesting";
       break;
     
+    case ERR_INGRACE:
+      ps = "Grace note in rhythm group";
+      break;
+    
+    case ERR_LONGDUR:
+      ps = "Rhythm duration too long";
+      break;
+    
+    case ERR_BADDUR:
+      ps = "Invalid duration";
+      break;
+    
+    case ERR_BADPITCH:
+      ps = "Invalid pitch";
+      break;
+    
+    case ERR_PITCHR:
+      ps = "Pitch out of range";
+      break;
+    
+    case ERR_BADOP:
+      ps = "Invalid operation";
+      break;
+    
     default:
       ps = "Unknown error";
   }
