@@ -100,7 +100,15 @@ January 17, 2020 | 3Y:A4-5</p>
 
 <h2><a name="sec3">3. Quanta</a></h2>
 
-<p>Rhythm and time units are counted in <i>quanta</i>.  A quantum is a variable-length duration that varies depending on the tempo.  96 quanta are equivalent to a quarter note.  See the Noir notation specification for further information.</p>
+<p>Rhythm and time units are counted in <i>quanta</i>.  The exact meaning of a quanta varies depending on what <i>basis</i> is used in the NMF file.  There are three kinds of basis values currently supported:</p>
+
+<ol>
+<li>96 quanta equals one quarter note</li>
+<li>44,100 quanta per second</li>
+<li>48,000 quanta per second</li>
+</ol>
+
+<p>The quarter-note basis has variable-length quantum duration, depending on the specific tempo.  The other two bases have fixed-duration quanta.</p>
 
 <h2><a name="sec4">4. File header</a></h2>
 
@@ -109,13 +117,16 @@ January 17, 2020 | 3Y:A4-5</p>
 <ol>
 <li>[Unsigned 32-bit integer] <b>Primary signature</b></li>
 <li>[Unsigned 32-bit integer] <b>Secondary signature</b></li>
-<li>[Unsigned 32-bit integer] <b>Section count</b></li>
+<li>[Unsigned 16-bit integer] <b>Quantum basis</b></li>
+<li>[Unsigned 16-bit integer] <b>Section count</b></li>
 <li>[Unsigned 32-bit integer] <b>Note count</b></li>
 </ol>
 
 <p>The primary signature must be the value 1,928,196,216.  The secondary signature must be the value 1,313,818,926.  If these two signatures are not present with those values, then the file is not an NMF file.</p>
 
-<p>The section count is the total number of sections in the section table (see &sect;5 <a href="#sec5">Section table</a>).  The range of the section count is one up to and including 65,536.</p>
+<p>The quantum basis must have one of the following values, which selects a quantum basis described in &sect;3 <a href="#sec3">Quanta</a>.  A value of zero selects 96 quanta per quarter note.  A value of one selects 44,100 quanta per second.  A value of two selects 48,000 quanta per second.</p>
+
+<p>The section count is the total number of sections in the section table (see &sect;5 <a href="#sec5">Section table</a>).  The range of the section count is one up to and including 65,535.</p>
 
 <p>The note count is the total number of notes in the note table (see &sect;6 <a href="#sec6">Note table</a>).  The range of the note count is one up to and including 1,048,576.</p>
 
@@ -133,7 +144,7 @@ January 17, 2020 | 3Y:A4-5</p>
 
 <h2><a name="sec6">6. Note table</a></h2>
 
-<p>The note table stores all the notes of the composition.  The total number of notes is given in the file header (see &sect;4 <a href="#sec4">File header</a>).  Each note has the following structure:</p>
+<p>The note table stores all the notes of the composition.  The total number of notes is given in the file header (see &sect;4 <a href="#sec4">File header</a>).  The notes may be in any order; there are no sorting requirements.  Each note has the following structure:</p>
 
 <ol>
 <li>[Unsigned 32-bit integer] <b>Time offset</b></li>
@@ -143,8 +154,6 @@ January 17, 2020 | 3Y:A4-5</p>
 <li>[Unsigned 16-bit integer] <b>Section index</b></li>
 <li>[Unsigned 16-bit integer] <b>Layer index</b></li>
 </ol>
-
-<p>The notes in the note table must be sorted such that the time offsets are in ascending order.  Furthermore, for notes that have equal time offsets, the durations must be sorted in ascending order.  No other sorting guarantees are made.</p>
 
 <p>The time offset is the number of quanta from the beginning of the composition to the note, with zero meaning the note occurs at the beginning of the composition.  The time offset does not include any grace note offset (see below), which may shift the note to a position before the indicated time offset.  The time offset must be greater than or equal to the starting offset of the section this note belongs to (see below).</p>
 
