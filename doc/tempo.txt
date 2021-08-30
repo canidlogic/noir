@@ -9,29 +9,6 @@
 #* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 # ======================================================================
-# Metacommand parameters are required to establish basic parameters.
-# Each metacommand parameter has an integer parameter.  Each metacommand
-# parameter must be present exactly once in the tempo map, and all
-# metacommands must be given before the tempo map begins.  However, the
-# metacommands can be in any order.
-# ======================================================================
-
-# Metacommand parameter establishing the sample rate in Hz.
-#
-# Only 48000 and 44100 are supported for the sampling rate.
-#
-%rate 44100;
-
-# Metacommand parameter establishing the grace note duration, expressed
-# in milliseconds.
-#
-# Grace notes will be spaced out at intervals of %gracetime
-# milliseconds.  Each grace note will have a duration of %gracetime,
-# which is then adjusted by the articulation.
-#
-%gracetime 100;
-
-# ======================================================================
 # The stack only stores integer values.
 #
 # We can use the "mul" operator to pop two integers off the stack,
