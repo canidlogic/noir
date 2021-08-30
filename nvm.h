@@ -31,7 +31,7 @@ typedef struct {
   
   /*
    * Bitmap storing pitches with zero or positive value, where zero is
-   * the least significant bit, 1 is the second least significant bit,
+   * the most significant bit, 1 is the second most significant bit,
    * and so forth.
    */
   uint64_t b;
@@ -91,13 +91,10 @@ void nvm_pitchset_add(NVM_PITCHSET *ps, int32_t pitch);
 void nvm_pitchset_drop(NVM_PITCHSET *ps, int32_t pitch);
 
 /*
- * Find one of the pitches in the pitch set.
+ * Return the lowest pitch in the given pitch set.
  * 
- * The returned pitch will be in range [NMF_MINPITCH, NMF_MAXPITCH].  If
- * there are multiple pitches in the set, there is no guarantee which of
- * the pitches is returned by this function.
- * 
- * A fault occurs if the pitch set is empty.
+ * The returned pitch will be in range [NMF_MINPITCH, NMF_MAXPITCH].  A
+ * fault occurs if the pitch set is empty.
  * 
  * Parameters:
  * 
@@ -105,9 +102,53 @@ void nvm_pitchset_drop(NVM_PITCHSET *ps, int32_t pitch);
  * 
  * Return:
  * 
- *   one of the pitches in the pitch set
+ *   the lowest pitch in the pitch set
  */
-int32_t nvm_pitchset_find(const NVM_PITCHSET *ps);
+int32_t nvm_pitchset_least(const NVM_PITCHSET *ps);
+
+/*
+ * Return the highest pitch in the given pitch set.
+ * 
+ * The returned pitch will be in range [NMF_MINPITCH, NMF_MAXPITCH].  A
+ * fault occurs if the pitch set is empty.
+ * 
+ * Parameters:
+ * 
+ *   ps - the pitch set to search
+ * 
+ * Return:
+ * 
+ *   the highest pitch in the pitch set
+ */
+int32_t nvm_pitchset_most(const NVM_PITCHSET *ps);
+
+/*
+ * Transpose all pitches in a given pitch set by the given number of
+ * semitones.
+ * 
+ * offset is the number of semitones to transpose.  A value of zero does
+ * nothing.  A positive value transposes all pitches upwards by that
+ * number of semitones.  A negative value transposes all pitches down by
+ * that number of semitones.
+ * 
+ * If the pitch set is empty, this function has no effect.
+ * 
+ * If transposition by the given offset would cause any pitch to go
+ * outside of the range [NMF_MINPITCH, NMF_MAXPITCH], the function fails
+ * and the pitch set is not modified.
+ * 
+ * Parameters:
+ * 
+ *   ps - the pitch set to transpose
+ * 
+ *   offset - the number of semitones to transpose
+ * 
+ * Return:
+ * 
+ *   non-zero if successful, zero if transposition causes any pitch to
+ *   go out of range
+ */
+int nvm_pitchset_transpose(NVM_PITCHSET *ps, int32_t offset);
 
 /*
  * Report an encountered pitch set in the input file.
