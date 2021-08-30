@@ -363,8 +363,8 @@ void nmf_rebase(NMF_DATA *pd, int basis);
 /*
  * Sort all the note events in the given data object.
  * 
- * The notes are put in ascending order of time offsets.  Grace note
- * offsets are not taken into account.
+ * The notes are put in ascending order of time offsets.  Grace notes
+ * are sorted by offset, coming before the beat.
  * 
  * Parameters:
  * 
