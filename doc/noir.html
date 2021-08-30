@@ -120,8 +120,7 @@ January 15, 2020 | 3Y:A4-3</p>
 &nbsp;&nbsp;6.3 <a href="#sec6p3">Pitch</a><br/>
 &nbsp;&nbsp;6.4 <a href="#sec6p4">Articulation</a><br/>
 &nbsp;&nbsp;6.5 <a href="#sec6p5">Section</a><br/>
-&nbsp;&nbsp;6.6 <a href="#sec6p6">Layer</a><br/>
-&nbsp;&nbsp;6.7 <a href="#sec6p7">Event sorting</a></p>
+&nbsp;&nbsp;6.6 <a href="#sec6p6">Layer</a></p>
 </div>
 
 <h2 id="headfirst"><a name="sec1">1. Introduction</a></h2>
@@ -496,7 +495,7 @@ January 15, 2020 | 3Y:A4-3</p>
 
 <h2><a name="sec6">6. Event buffer format</a></h2>
 
-<p>At the end of a successful interpretation of a Noir notation file, the event buffer will include one event for each note in the composition.  There will also be a section table, which stores the starting time offset for each section of the piece.  This section of the specification describes the exact format of events in the event buffer, and how the events are sorted.</p>
+<p>At the end of a successful interpretation of a Noir notation file, the event buffer will include one event for each note in the composition.  There will also be a section table, which stores the starting time offset for each section of the piece.  This section of the specification describes the exact format of events in the event buffer.</p>
 
 <h3><a name="sec6p1">6.1 Time offset</a></h3>
 
@@ -701,12 +700,6 @@ January 15, 2020 | 3Y:A4-3</p>
 <h3><a name="sec6p6">6.6 Layer</a></h3>
 
 <p>The layer is an unsigned, 16-bit integer value that identifies the layer number within the section defined by the section field.  The numeric value stored in this field is one less than the layer number, such that layer one has a numeric value of zero, layer two has a numeric value of one, and so forth.</p>
-
-<h3><a name="sec6p7">6.7 Event sorting</a></h3>
-
-<p>When interpretation is finished, Noir sorts the events in the event buffer such that time offsets are in ascending order.  For grace notes that have the same time offset, Noir sorts them with lower grace note offsets coming after higher grace note offsets, such that the grace notes are in the order they are played.</p>
-
-<p>This sorting order does <i>not</i> guarantee that events are in strict temporal order, because grace note offsets might cause later events to come before earlier ones.</p>
 
 <div style="margin-top: 2.5em;">&nbsp;</div>
 
