@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Noir notation specification</title>
+        <style>
+
+body {
+  margin: auto;
+  max-width: 40em;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th {
+  border: thin solid;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
+td {
+  border: thin solid;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
+    </style>
+  </head>
+  <body>
+
+<h1>Noir notation specification</h1>
+
+<p>Noah Johnson<br/>
+<a href="http://www.canidtech.com/">www.canidtech.com</a><br/>
+January 13, 2020 | 3Y:A4-1</p>
+
+<p>@@TODO: TOC</p>
+
+<h2>1. Introduction</h2>
+
+<p>This specification defines a plain-text US-ASCII format for notating music compositions, called <i>Noir</i> (pronounced &ldquo;nwar&rdquo;).  Noir is based on western music notation, and is designed to be entered manually by the user.</p>
+
+<p>This specification assumes familiarity with the basics of western music theory.</p>
+
+<h2>2. Pitch notation</h2>
+
+<p>Musical pitch is notated in Noir using the following syntax:</p>
+
+<ol>
+<li>Pitch name</li>
+<li>Zero or more accidentals</li>
+<li>Zero or more register marks</li>
+</ol>
+
+<p>No whitespace is allowed within a pitch description.  Multiple pitch descriptions in a row may be separated from each other with any amount of whitespace, or the pitches may be written one after another without any separation.  There is no possibility for ambiguity even when pitches are written together without any whitespace separation.</p>
+
+<p>The pitch name must be one capital letter <tt>A-G</tt> or one lowercase letter <tt>a-g</tt>.  The lowercase letters <tt>cdefgab</tt> (in that order) represent the octave beginning on middle C.  The uppercase letters <tt>CDEFGAB</tt> (in that order) represent the octave below middle C.  The lowercase letter <tt>a</tt> is the standard A-440 (fundamental frequency 440 hertz), also known as A4.  The following table gives the number of semitones above or below middle C for each pitch letter:</p>
+
+<ul>
+<li><tt>b</tt> is 11 semitones above middle C</li>
+<li><tt>a</tt> is 9 semitones above middle C</li>
+<li><tt>g</tt> is 7 semitones above middle C</li>
+<li><tt>f</tt> is 5 semitones above middle C</li>
+<li><tt>e</tt> is 4 semitones above middle C</li>
+<li><tt>d</tt> is 2 semitones above middle C</li>
+<li><tt>c</tt> is middle C</li>
+<li><tt>B</tt> is 1 semitone below middle C</li>
+<li><tt>A</tt> is 3 semitones below middle C</li>
+<li><tt>G</tt> is 5 semitones below middle C</li>
+<li><tt>F</tt> is 7 semitones below middle C</li>
+<li><tt>E</tt> is 8 semitones below middle C</li>
+<li><tt>D</tt> is 10 semitones below middle C</li>
+<li><tt>C</tt> is 12 semitones below middle C</li>
+</ul>
+
+<p>Each uppercase pitch letter is exactly 12 semitones (one octave) below the corresponding lowercase pitch letter.</p>
+
+<p>Accidentals are used to modify the pitch by semitones (half steps).  A &ldquo;natural&rdquo; accidental is also provided for sake of completeness, even though it has no effect on the pitch in Noir.  (Noir does not have any concept of key or scale.)  Unlike the pitch names, accidentals are case-insensitive; they may be used in either uppercase or lowercase with no difference in meaning.  The following accidentals are available.</p>
+
+<ul>
+<li><tt>X</tt> is a double-sharp, which raises pitch two semitones</li>
+<li><tt>S</tt> is a sharp, which raises pitch one semitone</li>
+<li><tt>N</tt> is a natural, which has no effect on pitch</li>
+<li><tt>H</tt> is a flat, which lowers pitch one semitone</li>
+<li><tt>T</tt> is a double-flat, which lowers pitch two semitones</li>
+</ul>
+
+<p>When multiple accidentals are used, the effect is cumulative.  Therefore, <tt>bxth</tt> would be equivalent <tt>bh</tt>, because the cumulative effect of <tt>xth</tt> is to lower pitch by one semitone, which is equivalent to <tt>h</tt>.  Furthermore, Noir assumes an equal-tempered scale, so for example <tt>es</tt> is equivalent to <tt>f</tt>.</p>
+
+<p>Register marks are used to modify the pitch by octaves.  (An octave is twelve semitones.)  Two register marks are available:</p>
+
+<ul>
+<li><tt>'</tt> (apostrophe) moves the pitch up one octave</li>
+<li><tt>,</tt> (comma) moves the pitch down one octave</li>
+</ul>
+
+<p>As with accidentals, when multiple register marks are used, their effect is cumulative.  After all accidentals and register marks have been applied to a pitch, the resulting pitch must be within the range of an 88-key piano, which is from <tt>A,,,</tt> up to <tt>c''''</tt></p>
+
+<p>Note that the apostrophe and comma are also used as rhythm modifies (see @@TODO:).  Transposition functionality is available, too (see @@TODO:).</p>
+
+<h3>2.1 Pitch sets</h3>
+
+<p>A pitch set is a set of zero or more pitches.  Pitch sets are represented internally by a bitmap, where each bit corresponds to one key on the 88-key piano.  Pitches that are included in the pitch set have the corresponding bit set, and pitches that are not included have the corresponding bit clear.</p>
+
+<p>Specifying a specific pitch more than once in a pitch set has no effect.  Specifying enharmonic equivalents (such as <tt>es</tt> and <tt>f</tt>) also has no effect.</p>
+
+<p>Pitch sets are enclosed within parentheses.  Parentheses may be nested, though nesting pitch groups is no different than just specifying all the pitches on the same level.  An empty set such as <tt>()</tt> is allowed, and means a rest.  Rests can also be specified with the special notation <tt>R</tt> or <tt>r</tt>, which both have the same meaning as <tt>()</tt>.  The <tt>R</tt> notation may be included within pitch sets, but it has no effect since it has no component pitches.</p>
+
+<p>Note that Noir thinks of rests as the absence of pitch (an empty pitch set).  Multi-pitch sets work like chords.</p>
+
+<p>Summary of pitch set notation:</p>
+
+<ul>
+<li><tt>()</tt> enclose pitch sets</li>
+<li><tt>R</tt> or <tt>r</tt> is shorthand for <tt>()</tt></li>
+</ul>
+
+<h2>3. Rhythm notation</h2>
+
+<p>Rhythm in Noir is based on the concept of a <i>quantum,</i> which is the minimal unit of rhythm in Noir.  All Noir rhythms can be represented as an integer number of quanta.  The duration of a quantum is not fixed, but varies depending on the current tempo.  Having variable-length quanta allows for rhythm to be specified independent of any particular tempo, as is the usual practice in western music notation.</p>
+
+<p>Rhythmic durations are notated in Noir using the following syntax:</p>
+
+<ol>
+<li>Unit number</li>
+<li>Rhythm suffix</li>
+</ol>
+
+<p>The unit number is one of the ten decimal digits.  The following table shows what traditional rhythm symbol each unit number is meant to represent, and how many quanta each unit number has (except for the unmeasured grace note):</p>
+
+<table>
+<tr>
+  <th>Number</th>
+  <th>Name</th>
+  <th>Quanta</th>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>0</tt></td>
+  <td>unmeasured grace note</td>
+  <td style="text-align: center;">&mdash;</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>1</tt></td>
+  <td>64th note</td>
+  <td style="text-align: right;">6</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>2</tt></td>
+  <td>32nd note</td>
+  <td style="text-align: right;">12</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>3</tt></td>
+  <td>16th note</td>
+  <td style="text-align: right;">24</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>4</tt></td>
+  <td>8th note</td>
+  <td style="text-align: right;">48</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>5</tt></td>
+  <td>quarter note</td>
+  <td style="text-align: right;">96</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>6</tt></td>
+  <td>half note</td>
+  <td style="text-align: right;">192</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>7</tt></td>
+  <td>whole note</td>
+  <td style="text-align: right;">384</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>8</tt></td>
+  <td>8th note triplet</td>
+  <td style="text-align: right;">32</td>
+</tr>
+<tr>
+  <td style="text-align: center;"><tt>9</tt></td>
+  <td>quarter note triplet</td>
+  <td style="text-align: right;">64</td>
+</tr>
+</table>
+
+<p>Note that the two dedicated unit numbers for triplets are useful for representing swing rhythms.  Also note that 128th notes, double whole notes, 16th note triplets, and half note triplets can be represented using rhythm suffixes, as described below.</p>
+
+<p>All rhythmic units can be optionally modified by a rhythm suffix, except for the grace note.  At most one rhythm suffix may be used; unlike for pitch, it is not possible to stack multiple suffixes for cumulative effect.  Each rhythm suffix multiplies the number of quanta by a certain value shown in the table below:</p>
+
+<ul>
+<li><tt>'</tt> (apostrophe) doubles the duration</li>
+<li><tt>.</tt> (period) multiplies the duration by 1.5</li>
+<li><tt>,</tt> (comma) makes the duration half as long</li>
+</ul>
+
+<p>The result of applying a suffix to a rhythmic unit is always another integer value of quanta.</p>
+
+<p>No whitespace is allowed between the unit number and the rhythm suffix.  As with pitches, whitespace is optional between multiple rhythm units in a row.</p>
+
+<p>Note that the apostrophe and comma are also used as pitch modifiers (see @@TODO:)</p>
+
+<h3>3.1 Rhythm groups</h3>
+
+<p>A longer rhythmic duration may be built out of multiple shorter rhythmic durations added together.  In Noir, this is accomplished with rhythm groups.  Rhythm groups have the same function as ties in traditional notation.</p>
+
+<p>Rhythm groups are enclosed within <tt>[]</tt> brackets.  There must be at least one rhythmic unit within the brackets.  Also, grace notes are not allowed within rhythm groups, since they are unmeasured.  Rhythm groups may be nested, although nested rhythm groups are no different from having all the rhythmic units in the top-level group.</p>
+
+<p>Only the total number of quanta within a rhythm group matters.  So, for example, the group <tt>[667]</tt> is equivalent to <tt>[77]</tt>, and both are also equivalent to <tt>7'</tt> because all have a total of 768 quanta.</p> 
+
+<p>Summary of rhythm group notation:</p>
+
+<ul>
+<li><tt>[]</tt> encloses rhythm groups</li>
+</ul>
+
+<h2>4. Interpreter state</h2>
+
+<p>Noir files are interpreted from start to finish.  This section describes the state variables that are used during interpretation.</p>
+
+<h3>4.1 Event buffer</h3>
+
+<p>All note events that are output during interpretation are stored in the event buffer, in the order that they were output.  The event buffer is only referred to during grace note flushes (see @@TODO:), during which point the most recently output grace note events are modified to correct their grace note offsets.</p>
+
+<p>The event buffer starts out empty.  See @@TODO: for details of how the event buffer is filled.</p>
+
+<h3>4.2 Cursor position</h3>
+
+<p>The cursor position is the current offset of quanta from the beginning of the composition, where a cursor position of zero is the start of the whole composition.</p>
+
+<p>The <tt>@</tt> and <tt>:</tt> operators cause the cursor to jump position, to the current value of the base time offset (see @@TODO:) or to the value on top of the location stack, respectively.  An error occurs if <tt>:</tt> is used when the location stack is empty.</p>
+
+<p>When a rest, pitch, pitch set, or <tt>/</tt> operator is encountered in the input, the cursor advances by the current value of the duration register <i>after</i> any notes have been output.  An error occurs if the duration register is undefined in this case.  The duration register has a value of zero and hence no advance occurs when the current duration is a grace note (see @@TODO:).</p>
+
+<p>The <tt>\</tt> operator is handled as the equivalent of a sequence of <tt>/</tt> operators.</p>
+
+<h3>4.3 Current pitch and duration</h3>
+
+<p>Two state registers keep track of the current pitch and duration at all times.  At the beginning of interpretation and after the pitch and duration registers have been reset, they contain special codes indicating that the registers are undefined.</p>
+
+<p>Each time a pitch or pitch set is encountered, the pitch set is copied into the pitch register, overwriting any of the current contents.  Rests are considered to be empty pitch sets (see @@TODO:), so rests cause the pitch register to be set to an empty pitch set.</p>
+
+<p>Each time a rhythm or rhythm group is encountered, the total duration in quanta is copied into the duration register, overwriting any of the current contents.  Unmeasured grace notes are represented by a duration of zero quanta in the duration register.</p>
+
+<p>The <tt>$</tt> <tt>@</tt> and <tt>:</tt> operations, as well as <tt>%</tt> metadata sections, cause both the pitch and duration registers to be reset to undefined state.</p>
+
+<p>Whenever the duration register contains a grace note value and then is reset or changed to a non-grace duration, this triggers a grace note flush (see @@TODO:).</p>
+
+<h3>4.4 Section state</h3>
+
+<p>The section count register and the base time offset register keep track of the sections in the composition.</p>
+
+<p>The section count register contains the current section number.  It starts out at zero.  It is incremented at each <tt>$</tt> operation.</p>
+
+<p>The base time offset contains the start of the current section as an offset in quanta from the beginning of the composition.  It starts out at zero.  At each <tt>$</tt> operation, the current value of the cursor position is copied into the base time offset register.</p>
+
+<p>Note that events in the preceding sections might overlap with events in subsequent sections.  The start of a section only guarantees that no subsequent event will come earlier than the start of the new section.</p>
+
+<h3>4.5 Location, transposition, and layer state</h3>
+
+<p>Locations, transpositions, and layers are tracked with stacks.  The location stack stores locations as offsets in quanta from the beginning of the composition.  The transposition stack stores current transposition settings as positive or negative displacements in semitones.  The layer stack stores pairs of section numbers and layer IDs within those sections.</p>
+
+<p>There is also a base layer register, which stores a section number and a layer ID within that section.</p>
+
+<p>The location, transposition, and layer stacks start out empty.  The base layer register starts out with the first layer in section number zero.</p>
+
+<p>When the <tt>$</tt> and <tt>@</tt> operators or the end of the input file occurs, the location, transposition, and layer stacks must be empty or an error occurs.</p>
+
+<p>The <tt>$</tt> and <tt>@</tt> operators cause the base layer register to reset, <i>after</i> those operators have made changes to the section state.  The base layer register is then reset to the first layer within the current section.</p>
+
+<p>Whenever pitches and pitch sets are encountered in the input, each pitch is adjusted by the current transposition displacement on top of the transposition stack.  If the transposition stack is empty, a displacement of zero is assumed.</p>
+
+<p>Whenever note events are output, their section and layer IDs are set to the values on top of the layer stack.  If the layer stack is empty, the value in the base layer register is used instead.</p>
+
+<p>The <tt>{</tt> operator causes the current cursor location to be pushed on top of the location stack.  The <tt>:</tt> operator causes the current cursor location to jump to the location on top of the location stack (with an error if the location stack is empty).  The <tt>}</tt> operator causes the value on top of the location stack to be removed (with an error if the location stack is empty).</p>
+
+<p>The <tt>^</tt> and <tt>=</tt> operators are used to push and pop the transposition stack, while the <tt>+</tt> and <tt>-</tt> operators are used to push and pop the layer stack.  The <tt>&</tt> operator is used to change the layer ID within the base layer register.</p>
+
+<h3>4.6 Articulation state</h3>
+
+<p>The articulation state consists of an articulation stack and an immediate articulation register.  The stack and the register hold articulations.  The register also has a special empty value.</p>
+
+<p>When a rest, pitch, pitch set, or <tt>/</tt> operator is encountered in the input, then <i>after</i> any note events have been output, the immediate articulation register is cleared to empty if not already empty.</p>
+
+<p>The <tt>\</tt> operator is handled equivalent to a sequence of <tt>/</tt> operators, with the immediate articulation register cleared after the first iteration.  Therefore, the immediate articulation only applies to the first note in a sequence notated by the <tt>\</tt> operator.</p>
+
+<p>When the <tt>$</tt> <tt>@</tt> and <tt>:</tt> operators or the end of the input file or a <tt>%</tt> metadata section occur, the immediate articulation register must be empty or there is an error.</p>
+
+<p>When the <tt>$</tt> and <tt>@</tt> operators or the end of the input file occurs, the articulation stack must be empty or there is an error.</p>
+
+<p>Whenever note events are output, their articulation is set to the articulation in the immediate articulation register if it is not empty, otherwise the articulation on top of the articulation stack if the stack is not empty, otherwise to the first articulation index.</p>
+
+<p>The <tt>!</tt> and <tt>~</tt> operators are used to push and pop the articulation stack.  The <tt>*</tt> operator is used to set an articulation in the immediate articulation register.</p>
+
+<h3>4.7 Grace note state</h3>
+
+<p>The grace note state consists of a grace event count register and a grace offset register.  Both registers contain integer values, and both registers start out at zero.</p>
+
+<p>When a rest, pitch, pitch set, or <tt>/</tt> operator is encountered in the input and the current duration register indicates a grace note, then the grace offset register is incremented <i>before</i> any note events are output.  The <tt>\</tt> operator is treated as equivalent to a sequence of <tt>/</tt> operators.</p>
+
+<p>When the grace offset register contains a non-zero value, then note events that are output have their durations set to a special value that indicates the current grace note offset in the grace offset register.  Furthermore, each note event that is output when the grace offset register is non-zero causes the grace event count register to increment.</p>
+
+<p>When a grace note flush is triggered by changes or a reset to the duration register (see @@TODO:) or by the end of the file, then the following things happen.  First, if the grace event count register is non-zero, then the last <i>n</i> events in the event buffer, where <i>n</i> is the grace event count register value, have their grace note offset flipped.  To flip a grace note offset, subtract it from one greater than the grace offset register value.  Second, reset both the grace event count register and the grace offset register to zero.</p>
+
+<h2>5. Execution</h2>
+
+<p>Noir notation is stored in a plain-text file.  Line breaks may be <tt>CR</tt>-only, <tt>LF</tt>-only, <tt>CR+LF</tt>, or <tt>LF+CR</tt>.  A UTF-8 Byte Order Mark (BOM) is allowed at the beginning of the file, but ignored by Noir.  Comments begin with the <tt>#</tt> character and run up to but excluding the next <tt>CR</tt> character, <tt>LF</tt> character, or the end of the file (whichever comes first).  Whitespace is defined as Horizontal Tab (<tt>HT</tt>), Space (<tt>SP</tt>), Carriage Return (<tt>CR</tt>), and Line Feed (<tt>LF</tt>).</p>
+
+<p>Noir notation only uses US-ASCII.  Comments may use US-ASCII or any compatible superset thereof, such as UTF-8, CESU-8, ISO-8859-1, or Windows-1252.  Noir ignores all characters within the comments, except for the opening <tt>#</tt> and the closing line break.</p>
+
+<p>The input file is read from start to finish in sequential order, and the notation is interpreted in the order it appears in the file.  The following kinds of entities are interpreted in the file:</p>
+
+<ol>
+<li>Pitches (see @@TODO:)</li>
+<li>Rests (see @@TODO:)</li>
+<li>Pitch sets (see @@TODO:)</li>
+<li>Rhythm units (see @@TODO:)</li>
+<li>Rhythm groups (see @@TODO:)</li>
+<li>Operators</li>
+<li>Metadata sections</li>
+<li>End Of File (EOF)</li>
+</ol>
+
+<p>Pitches are treated equivalent to pitch sets that contain one pitch.  Rests are treated equivalent to empty pitch sets.  Rhythm units and rhythm groups both are interpreted as durations specified as a count of quanta (with grace notes treated as having zero quanta).  This simplifies the entities to the following list:</p>
+
+<ol>
+<li>Pitch sets (including pitches and rests)</li>
+<li>Duration in quanta (covering rhythm units and rhythm groups)</li>
+<li>Operators</li>
+<li>Metadata sections</li>
+<li>End Of File (EOF)</li>
+</ol>
+
+<p>Pitch sets cause the current pitch register to be set (see @@TODO:).  Then, if the pitch set is not empty (not a rest), note events are output to the event buffer for each unique pitch in the pitch set.  Each pitch is modified by the current transposition displacement (see @@TODO:) before it is output.  Note events use the cursor position (see @@TODO:) for the time offset, their articulation is determined by the current articulation state (see @@TODO:), and their layer is determined by the current layer state (see @@TODO:).  If the current duration register has a non-zero value, that is used for the duration.  Otherwise, see @@TODO: for how grace notes are handled.  Finally, the cursor position is advanced by the duration (see @@TODO:).</p>
+
+<p>Durations cause the current duration register to be set (see @@TODO:).  If the duration is changed from a grace note (duration zero) to something else (non-zero), then a grace note flush is triggered &ndash; see @@TODO: for details.</p>
+
+<p>Operators have various effects on the interpreter state.  Operators are documented below.</p>
+
+<p>Metadata sections begin with a <tt>%</tt> section name, followed by section data, ending with <tt>%end</tt>.  They specify additional information beyond the basic music composition.  See @@TODO: for details about the metadata sections.</p>
+
+<p>At the End Of File (EOF), the interpreter must be in a valid final state (see @@TODO:) and all metadata sections must be closed (see @@TODO:).  A grace note flush (see @@TODO:) is performed if necessary at EOF.</p>
+
+<h3>5.1 List of operators</h3>
+
+<p>...see @@TODO:...</p>
+
+<div style="margin-top: 2.5em;">&nbsp;</div>
+
+  </body>
+</html>
