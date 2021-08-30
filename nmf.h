@@ -14,7 +14,7 @@
 /*
  * The maximum section count possible for an NMF file.
  */
-#define NMF_MAXSECT (INT32_C(65536))
+#define NMF_MAXSECT (INT32_C(65535))
 
 /*
  * The maximum note count possible for an NMF file.
@@ -31,6 +31,13 @@
  * The maximum articulation value.
  */
 #define NMF_MAXART (61)
+
+/*
+ * The quantum basis values.
+ */
+#define NMF_BASIS_Q96   (0)   /* 96 quanta in a quarter note */
+#define NMF_BASIS_44100 (1)   /* 44,100 quanta per second */
+#define NMF_BASIS_48000 (2)   /* 48,000 quanta per second */
 
 /*
  * NMF_DATA structure prototype.
@@ -143,6 +150,21 @@ NMF_DATA *nmf_parse_path(const char *pPath);
 void nmf_free(NMF_DATA *pd);
 
 /*
+ * Return the quantum basis of the parsed data object.
+ * 
+ * The return value is one of the NMF_BASIS constants.
+ * 
+ * Parameters:
+ * 
+ *   pd - the parsed data object
+ * 
+ * Return:
+ * 
+ *   the quantum basis
+ */
+int nmf_basis(NMF_DATA *pd);
+
+/*
  * Return the number of sections in the parsed data object.
  * 
  * The range is [1, NMF_MAXSECT].
@@ -202,8 +224,7 @@ int32_t nmf_offset(NMF_DATA *pd, int32_t sect_i);
  * 
  * pn points to the structure to fill with information about the note.
  * 
- * The notes are in ascending order of time offsets, and then in
- * ascending order of durations.
+ * The notes are in any order; there are no sorting guarantees.
  * 
  * Parameters:
  * 
