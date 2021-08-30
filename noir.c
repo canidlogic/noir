@@ -25,7 +25,13 @@
  * Compilation
  * -----------
  * 
- * @@TODO: event nmf token entity nvm
+ * Compile with the following modules:
+ * 
+ *   entity.c
+ *   event.c 
+ *   nmf.c
+ *   nvm.c
+ *   token.c
  */
 
 #include "noirdef.h"
