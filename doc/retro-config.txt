@@ -1,36 +1,12 @@
-%noir-config;
+%noir-retro;
 
 #* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 #*                                                                     *
-#* Example Noir configuration file.                                    *
+#* Example Noir configuration file for Retro synthesis.                *
 #*                                                                     *
-#* The file must begin with the "%noir-config;" signature, shown above.*
+#* The file must begin with the "%noir-retro;" signature, shown above. *
 #*                                                                     *
 #* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-
-# ======================================================================
-# Metacommand parameters are required to establish basic parameters.
-# Each metacommand parameter has an integer parameter.  Each metacommand
-# parameter must be present exactly once in the configuration file.
-# However, the metacommands can be in any order after the signature
-# line, and they can even be mixed up with the other configuration
-# commands.
-# ======================================================================
-
-# Metacommand parameter establishing the sample rate in Hz.
-#
-# Only 48000 and 44100 are supported for the sampling rate.
-#
-%rate 44100;
-
-# Metacommand parameter establishing the grace note duration, expressed
-# in milliseconds.
-#
-# Grace notes will be spaced out at intervals of %gracetime
-# milliseconds.  Each grace note will have a duration of %gracetime,
-# which is then adjusted by the articulation.
-#
-%gracetime 100;
 
 # ======================================================================
 # Instrument mappings must be defined in the configuration file.  By
