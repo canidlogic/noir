@@ -25,10 +25,11 @@
  * Compilation
  * -----------
  * 
- * @@TODO: event nmf token
+ * @@TODO: event nmf token entity nvm
  */
 
 #include "noirdef.h"
+#include "entity.h"
 #include "event.h"
 #include "token.h"
 
@@ -102,20 +103,12 @@ static int noir(FILE *pIn, FILE *pOut, int32_t *pln, int *per) {
   *pln = -1;
   *per = ERR_OK;
   
-  /* @@TODO: */
-  TOKEN tk;
-  int retval = 0;
-  if (status) {
-    token_init(pIn);
-    for(retval = token_read(&tk);
-        retval && ((tk.str)[0] != 0);
-        retval = token_read(&tk)) {
-      fprintf(stderr, "%ld: %s\n", (long) tk.line, tk.str);
-    }
-    
-    if (!event_note(0, 96, 9, 0, 0, 1)) {
-      abort();
-    }
+  /* Initialize the token module */
+  token_init(pIn);
+  
+  /* Run the input file and interpret it */
+  if (!entity_run(pln, per)) {
+    status = 0;
   }
   
   /* Write event buffer and section table to output */
@@ -188,6 +181,18 @@ static const char *err_string(int code) {
     
     case ERR_PARAMTK:
       ps = "Bad parameter operation token";
+      break;
+    
+    case ERR_RIGHT:
+      ps = "Right closing ) or ] without opening symbol";
+      break;
+    
+    case ERR_UNCLOSED:
+      ps = "Unclosed ( or [ group";
+      break;
+    
+    case ERR_TOODEEP:
+      ps = "Too much nesting";
       break;
     
     default:
