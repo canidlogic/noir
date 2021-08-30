@@ -25,11 +25,12 @@
  * Compilation
  * -----------
  * 
- * @@TODO: event
+ * @@TODO: event nmf token
  */
 
 #include "noirdef.h"
 #include "event.h"
+#include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,7 +103,16 @@ static int noir(FILE *pIn, FILE *pOut, int32_t *pln, int *per) {
   *per = ERR_OK;
   
   /* @@TODO: */
+  TOKEN tk;
+  int retval = 0;
   if (status) {
+    token_init(pIn);
+    for(retval = token_read(&tk);
+        retval && ((tk.str)[0] != 0);
+        retval = token_read(&tk)) {
+      fprintf(stderr, "%ld: %s\n", (long) tk.line, tk.str);
+    }
+    
     if (!event_note(0, 96, 9, 0, 0, 1)) {
       abort();
     }
@@ -150,6 +160,34 @@ static const char *err_string(int code) {
     
     case ERR_EMPTY:
       ps = "No notes were defined";
+      break;
+    
+    case ERR_IOREAD:
+      ps = "I/O error reading input";
+      break;
+    
+    case ERR_NULCHAR:
+      ps = "Input file includes nul byte";
+      break;
+    
+    case ERR_BADCHAR:
+      ps = "Invalid character in input";
+      break;
+    
+    case ERR_OVERLINE:
+      ps = "Too many lines in input text";
+      break;
+    
+    case ERR_KEYTOKEN:
+      ps = "Bad key operation token";
+      break;
+    
+    case ERR_LONGTOKEN:
+      ps = "Token is too long";
+      break;
+    
+    case ERR_PARAMTK:
+      ps = "Bad parameter operation token";
       break;
     
     default:
