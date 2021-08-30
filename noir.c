@@ -219,6 +219,66 @@ static const char *err_string(int code) {
       ps = "Invalid operation";
       break;
     
+    case ERR_UNDERFLOW:
+      ps = "Attempted to pop an empty stack";
+      break;
+    
+    case ERR_BADLAYER:
+      ps = "Invalid layer index";
+      break;
+    
+    case ERR_STACKFULL:
+      ps = "Too many elements on stack";
+      break;
+    
+    case ERR_HUGETRANS:
+      ps = "Cumulative transposition value too large";
+      break;
+    
+    case ERR_DANGLEART:
+      ps = "Dangling immediate articulation";
+      break;
+    
+    case ERR_NOLOC:
+      ps = "Attempt to warp when location stack is empty";
+      break;
+    
+    case ERR_LINGER:
+      ps = "Lingering values in interpreter stacks";
+      break;
+    
+    case ERR_MANYSECT:
+      ps = "Too many sections";
+      break;
+    
+    case ERR_MULTCOUNT:
+      ps = "Invalid count for multiple operation";
+      break;
+    
+    case ERR_TRANSRNG:
+      ps = "Transposed pitches out of range";
+      break;
+    
+    case ERR_NOPITCH:
+      ps = "Current pitch register undefined";
+      break;
+    
+    case ERR_NODUR:
+      ps = "Current duration register undefined";
+      break;
+    
+    case ERR_HUGEGRACE:
+      ps = "Grace note sequence too long";
+      break;
+    
+    case ERR_LONGPIECE:
+      ps = "Composition is too long";
+      break;
+    
+    case ERR_MANYNOTES:
+      ps = "Too many notes";
+      break;
+    
     default:
       ps = "Unknown error";
   }
