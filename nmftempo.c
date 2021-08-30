@@ -30,7 +30,7 @@
  * Compilation
  * -----------
  * 
- * Requires nmf and shastina.
+ * Requires nmf and libshastina beta 0.9.2 or compatible.
  * 
  * May also require the math library with -lm
  */
@@ -1907,7 +1907,9 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
   int status = 1;
   int first_ent = 1;
   int autostep = 0;
+  int retval = 0;
   SNPARSER *pr = NULL;
+  SNSOURCE *ps = NULL;
   SNENTITY ent;
   
   /* Initialize structure */
@@ -1925,6 +1927,9 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
   if ((srate != 48000) && (srate != 44100)) {
     abort();
   }
+  
+  /* Wrap the input file in a Shastina source object */
+  ps = snsource_file(pIn, 0);
   
   /* Reset error */
   *per = ERR_OK;
@@ -1948,9 +1953,9 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
   
   /* Go through all Shastina entities in input until either an error or
    * the EOF marker */
-  for(snparser_read(pr, &ent, pIn);
+  for(snparser_read(pr, &ent, ps);
       ent.status > 0;
-      snparser_read(pr, &ent, pIn)) {
+      snparser_read(pr, &ent, ps)) {
     
     /* If this is the first entity being read, make sure it is the
      * opening metacommand sequence, then continue the loop to read
@@ -1968,7 +1973,7 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
       
       /* Read another entity, which must be the correct metatoken */
       if (status) {
-        snparser_read(pr, &ent, pIn);
+        snparser_read(pr, &ent, ps);
         if (ent.status != SNENTITY_META_TOKEN) {
           status = 0;
           *per = ERR_TYPESIG;
@@ -1985,7 +1990,7 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
       
       /* Read another entity, which must be end meta */
       if (status) {
-        snparser_read(pr, &ent, pIn);
+        snparser_read(pr, &ent, ps);
         if (ent.status != SNENTITY_END_META) {
           status = 0;
           *per = ERR_TYPESIG;
@@ -2118,6 +2123,16 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
     *pln = snparser_count(pr);
   }
   
+  /* Check that nothing after the |; in the file */
+  if (status) {
+    retval = snsource_consume(ps);
+    if (retval < 0) {
+      status = 0;
+      *per = ERR_SN_MAX + retval;
+      *pln = -1;
+    }
+  }
+  
   /* Check that stack is empty */
   if (status && (m_st_count > 0)) {
     status = 0;
@@ -2142,6 +2157,10 @@ static int parseMap(FILE *pIn, int32_t srate, int *per, long *pln) {
   /* Free parser if allocated */
   snparser_free(pr);
   pr = NULL;
+  
+  /* Free input source if allocated */
+  snsource_free(ps);
+  ps = NULL;
   
   /* If failure, set initialization state to -1 */
   if (!status) {
@@ -2276,194 +2295,113 @@ static const char *error_string(int code) {
   
   const char *pResult = NULL;
   
-  switch (code) {
+  if ((code >= ERR_SN_MIN) && (code <= ERR_SN_MAX)) {
+    /* Shastina error code, so handle with Shastina */
+    pResult = snerror_str(code - ERR_SN_MAX);
     
-    case ERR_OK:
-      pResult = "No error";
-      break;
-    
-    case ERR_NMFIN:
-      pResult = "Error parsing input NMF";
-      break;
-    
-    case ERR_BASISIN:
-      pResult = "Input NMF has wrong quantum basis";
-      break;
-    
-    case ERR_XFORM:
-      pResult = "Error transforming t";
-      break;
-    
-    case ERR_NOZEROT:
-      pResult = "No tempo at t=0";
-      break;
-    
-    case ERR_NOCHRON:
-      pResult = "Tempi not in chronological order";
-      break;
-    
-    case ERR_NUMERIC:
-      pResult = "Numeric computation error";
-      break;
-    
-    case ERR_TOOMANY:
-      pResult = "Too many tempi";
-      break;
-    
-    case ERR_DANGLE:
-      pResult = "Ramp tempo at end of map";
-      break;
-    
-    case ERR_EMPTY:
-      pResult = "Empty tempo map";
-      break;
-    
-    case ERR_TYPESIG:
-      pResult = "Shastina type signature missing";
-      break;
-    
-    case ERR_BADENT:
-      pResult = "Unsupported Shastina entity";
-      break;
-    
-    case ERR_BADOP:
-      pResult = "Unsupported operation";
-      break;
-    
-    case ERR_STACKRM:
-      pResult = "Items remaining on stack";
-      break;
-    
-    case ERR_STCKFUL:
-      pResult = "Interpreter stack filled";
-      break;
-    
-    case ERR_STCKEMP:
-      pResult = "Interpreter stack ran empty";
-      break;
-    
-    case ERR_DURSTR:
-      pResult = "Invalid duration string";
-      break;
-    
-    case ERR_NUMSTR:
-      pResult = "Invalid numeric literal";
-      break;
-    
-    case ERR_OVERFL:
-      pResult = "Integer overflow";
-      break;
-    
-    case ERR_BADSEC:
-      pResult = "Section number not found in input";
-      break;
-    
-    case ERR_BADCUR:
-      pResult = "Cursor position out of range";
-      break;
-    
-    case ERR_BADRATE:
-      pResult = "Invalid rate";
-      break;
-    
-    case ERR_BADQ:
-      pResult = "Invalid quanta count";
-      break;
-    
-    case ERR_BADMIL:
-      pResult = "Invalid millisecond count";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_IOERR):
-      pResult = "I/O error";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_EOF):
-      pResult = "Unexpected end of file";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_BADSIG):
-      pResult = "Unrecognized file signature";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_OPENSTR):
-      pResult = "File ends in middle of string";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_LONGSTR):
-      pResult = "String is too long";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_NULLCHR):
-      pResult = "Nul character encountered in string";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_DEEPCURLY):
-      pResult = "Too much curly nesting in string";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_BADCHAR):
-      pResult = "Illegal character encountered";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_LONGTOKEN):
-      pResult = "Token is too long";
-      break;
+  } else {
+    /* Not a Shastina error code, so handle it ourselves */
+    switch (code) {
       
-    case (ERR_SN_MAX+SNERR_TRAILER):
-      pResult = "Content present after |; token";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_DEEPARRAY):
-      pResult = "Too much array nesting";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_METANEST):
-      pResult = "Nested metacommands";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_SEMICOLON):
-      pResult = "Semicolon used outside of metacommand";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_DEEPGROUP):
-      pResult = "Too much group nesting";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_RPAREN):
-      pResult = "Right parenthesis outside of group";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_RSQR):
-      pResult = "Right square bracket outside array";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_OPENGROUP):
-      pResult = "Open group";
-      break;
-
-    case (ERR_SN_MAX+SNERR_LONGARRAY):
-      pResult = "Array has too many elements";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_METAEMBED):
-      pResult = "Embedded data in metacommand";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_OPENMETA):
-      pResult = "Unclosed metacommand";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_OPENARRAY):
-      pResult = "Unclosed array";
-      break;
-    
-    case (ERR_SN_MAX+SNERR_COMMA):
-      pResult = "Comma used outside of array or meta";
-      break;
-    
-    default:
-      pResult = "Unknown error";
+      case ERR_OK:
+        pResult = "No error";
+        break;
+      
+      case ERR_NMFIN:
+        pResult = "Error parsing input NMF";
+        break;
+      
+      case ERR_BASISIN:
+        pResult = "Input NMF has wrong quantum basis";
+        break;
+      
+      case ERR_XFORM:
+        pResult = "Error transforming t";
+        break;
+      
+      case ERR_NOZEROT:
+        pResult = "No tempo at t=0";
+        break;
+      
+      case ERR_NOCHRON:
+        pResult = "Tempi not in chronological order";
+        break;
+      
+      case ERR_NUMERIC:
+        pResult = "Numeric computation error";
+        break;
+      
+      case ERR_TOOMANY:
+        pResult = "Too many tempi";
+        break;
+      
+      case ERR_DANGLE:
+        pResult = "Ramp tempo at end of map";
+        break;
+      
+      case ERR_EMPTY:
+        pResult = "Empty tempo map";
+        break;
+      
+      case ERR_TYPESIG:
+        pResult = "Shastina type signature missing";
+        break;
+      
+      case ERR_BADENT:
+        pResult = "Unsupported Shastina entity";
+        break;
+      
+      case ERR_BADOP:
+        pResult = "Unsupported operation";
+        break;
+      
+      case ERR_STACKRM:
+        pResult = "Items remaining on stack";
+        break;
+      
+      case ERR_STCKFUL:
+        pResult = "Interpreter stack filled";
+        break;
+      
+      case ERR_STCKEMP:
+        pResult = "Interpreter stack ran empty";
+        break;
+      
+      case ERR_DURSTR:
+        pResult = "Invalid duration string";
+        break;
+      
+      case ERR_NUMSTR:
+        pResult = "Invalid numeric literal";
+        break;
+      
+      case ERR_OVERFL:
+        pResult = "Integer overflow";
+        break;
+      
+      case ERR_BADSEC:
+        pResult = "Section number not found in input";
+        break;
+      
+      case ERR_BADCUR:
+        pResult = "Cursor position out of range";
+        break;
+      
+      case ERR_BADRATE:
+        pResult = "Invalid rate";
+        break;
+      
+      case ERR_BADQ:
+        pResult = "Invalid quanta count";
+        break;
+      
+      case ERR_BADMIL:
+        pResult = "Invalid millisecond count";
+        break;
+      
+      default:
+        pResult = "Unknown error";
+    }
   }
   
   return pResult;
