@@ -41,6 +41,21 @@
 #define ERR_BADPITCH  (15)  /* Invalid pitch */
 #define ERR_PITCHR    (16)  /* Pitch out of range */
 #define ERR_BADOP     (17)  /* Invalid operation */
+#define ERR_UNDERFLOW (18)  /* Attempt to pop an empty stack */
+#define ERR_BADLAYER  (19)  /* Invalid layer index */
+#define ERR_STACKFULL (20)  /* Too many elements on stack */
+#define ERR_HUGETRANS (21)  /* Transposition too huge */
+#define ERR_DANGLEART (22)  /* Dangling immediate articulation */
+#define ERR_NOLOC     (23)  /* Location stack empty */
+#define ERR_LINGER    (24)  /* Lingering values in stack */
+#define ERR_MANYSECT  (25)  /* Too many sections */
+#define ERR_MULTCOUNT (26)  /* Invalid count for multiple operation */
+#define ERR_TRANSRNG  (27)  /* Transposed pitches out of range */
+#define ERR_NOPITCH   (28)  /* Pitch register undefined */
+#define ERR_NODUR     (29)  /* Duration register undefined */
+#define ERR_HUGEGRACE (30)  /* Grace note sequence too long */
+#define ERR_LONGPIECE (31)  /* Cursor overflow */
+#define ERR_MANYNOTES (32)  /* Too many notes */
 
 /*
  * ASCII characters.
