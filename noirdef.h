@@ -32,6 +32,9 @@
 #define ERR_KEYTOKEN  (6)   /* Bad key operation token */
 #define ERR_LONGTOKEN (7)   /* Token is too long */
 #define ERR_PARAMTK   (8)   /* Bad parameter operation token */
+#define ERR_RIGHT     (9)   /* Right closing symbol without opener */
+#define ERR_UNCLOSED  (10)  /* Unclosed group */
+#define ERR_TOODEEP   (11)  /* Too much nesting */
 
 /*
  * ASCII characters.
