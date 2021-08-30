@@ -659,8 +659,9 @@ static int nmf_readBias16(FILE *pf, int16_t *pv) {
  * Compare two note events to each other.
  * 
  * The comparison is less than, equals, or greater than according to the
- * time offsets of the note events.  Grace note offsets are not taken
- * into account.
+ * time offsets of the note events.  Grace notes with equal time offsets
+ * are sorted according to grace offset in sequential order, and grace
+ * notes come before the main beat.
  * 
  * The function is designed to be used with the qsort() function of the
  * standard library.  The pointers are to NMF_NOTE structures.
@@ -701,8 +702,34 @@ static int nmf_cmp(const void *pva, const void *pvb) {
     result = 1;
     
   } else if (pa->t == pb->t) {
-    /* Both events have same t */
-    result = 0;
+    /* Both events have same t -- check for grace notes */
+    if ((pa->dur < 0) && (pb->dur < 0)) {
+      /* Both are grace notes */
+      if (pa->dur < pb->dur) {
+        result = -1;
+      
+      } else if (pa->dur > pb->dur) {
+        result = 1;
+      
+      } else if (pa->dur == pb->dur) {
+        result = 0;
+      
+      } else {
+        abort();  /* shouldn't happen */
+      }
+    
+    } else if (pa->dur < 0) {
+      /* A is a grace note, B is not */
+      result = -1;
+    
+    } else if (pb->dur < 0) {
+      /* B is a grace note, A is not */
+      result = 1;
+    
+    } else {
+      /* Neither are grace notes */
+      result = 0;
+    }
     
   } else {
     /* Shouldn't happen */
