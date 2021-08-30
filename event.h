@@ -5,22 +5,15 @@
  * event.h
  * 
  * Event Buffer module of the Noir compiler.
+ * 
+ * Compilation
+ * ===========
+ * 
+ * Requires the Noir Music File (NMF) library.
  */
 
 #include "noirdef.h"
 #include <stdio.h>
-
-/*
- * The maximum number of sections that may be defined.
- * 
- * This includes section index zero as the first section.
- */
-#define EVENT_MAXSECT (INT32_C(65535))
-
-/*
- * The maximum number of notes that may be defined.
- */
-#define EVENT_MAXNOTE (INT32_C(1048576))
 
 /*
  * Define a new section beginning at the given offset in quanta.
@@ -35,8 +28,8 @@
  * Subsequent sections must have an offset that is greater than or equal
  * to the offset of the previous section or a fault occurs.
  * 
- * If the number of sections exceeds EVENT_MAXSECT, then the function
- * will fail.
+ * If the number of sections exceeds NMF_MAXSECT, then the function will
+ * fail.
  * 
  * A fault occurs if this is called after event_finish().
  * 
@@ -53,8 +46,7 @@ int event_section(int32_t offset);
 /*
  * Define a new note event.
  * 
- * Note events may be defined in any order.  They will be sorted
- * appropriately when they are output.  However, notes that have a
+ * Note events may be defined in any order.  However, notes that have a
  * section index that is greater than zero may only be defined after
  * that section has been defined with event_section().
  * 
@@ -69,10 +61,9 @@ int event_section(int32_t offset);
  * value of zero is given.  dur must not be below -(INT32_MAX).
  * 
  * pitch is the pitch of the note, in semitones from middle C.  The
- * range is [NOIR_MINPITCH, NOIR_MAXPITCH] (as given in noirdef.h).
+ * range is [NMF_MINPITCH, NMF_MAXPITCH].
  * 
- * art is the numeric articulation index.  The range is
- * [0, NOIR_MAXART], where NOIR_MAXART is given in noirdef.h
+ * art is the numeric articulation index.  The range is [0, NMF_MAXART].
  * 
  * sect is the section index of the section that the note belongs to.
  * It must be zero or greater.  If it is greater than zero, it must
