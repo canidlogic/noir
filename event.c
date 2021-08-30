@@ -131,7 +131,7 @@ int event_note(
   if ((layer < 1) || (layer > NOIR_MAXLAYER)) {
     abort();
   }
-  
+
   /* Fill in the note structure */
   n.t = t;
   n.dur = dur;
