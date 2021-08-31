@@ -1,7 +1,7 @@
 # Noir
 Music notation system based on ASCII plain-text files.
 
-See `noir.html` in the `doc` directory for a specification of the ASCII music notation format.
+See `noir_spec.md` in the `doc` directory for a specification of the ASCII music notation format.
 
 The main program provided by this distribution is `noir`, which compiles the ASCII music notation format into a special binary NMF format.  See `nmf.html` in the `doc` directory for the specification of this NMF format.  The `nmf.h` and `nmf.c` files contain a codec for the NMF format.
 
