@@ -1,6 +1,6 @@
 # Upgrade path to beta 0.5.3
 
-This document discusses the architectural changes to Noir moving from version 0.5.2 beta to 0.5.3 beta.  These changes are __not__ backwards compatible.  Currently existing Noir compositions will either have to rewrite for 0.5.3 or remain on 0.5.2.
+This document discusses the architectural changes to Noir moving from version 0.5.2 beta to 0.5.3 beta.  The changes to the Noir ASCII format and NMF parsing are backwards compatible.  However, various architectural changes to NMF are __not__ backwards compatible, and projects that currently use shell scripts for rendering Noir into Retro will either have to rewrite for 0.5.3 or remain on 0.5.2.
 
 ## Changes to NMF
 
