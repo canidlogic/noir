@@ -358,7 +358,7 @@ The duration is a signed, 32-bit integer value that indicates the duration of th
 
 ### <span id="mds6p3">6.3 Pitch</span>
 
-The pitch is a signed, 16-bit integer value that indicates the pitch of the note as a count of semitones away from middle C.  The valid range is [-39, 48], which is the range of an 88-key keyboard.  When the duration is zero, the pitch field may have some other meaning not defined here.
+The pitch is a signed, 16-bit integer value that indicates the pitch of the note as a count of semitones away from middle C.  The valid range is \[-39, 48\], which is the range of an 88-key keyboard.  When the duration is zero, the pitch field may have some other meaning not defined here.
 
 ### <span id="mds6p4">6.4 Articulation</span>
 
