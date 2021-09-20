@@ -1944,6 +1944,11 @@ int nvm_op_cue(int32_t cue_num, int *per) {
     *per = ERR_CUENUM;
   }
   
+  /* Perform a grace note flush if necessary */
+  if (status) {
+    nvm_graceFlush();
+  }
+  
   /* Report the cue event */
   if (status) {
     if (!event_cue(
