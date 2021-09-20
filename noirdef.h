@@ -60,7 +60,8 @@
 #define ERR_NODUR     (29)  /* Duration register undefined */
 #define ERR_HUGEGRACE (30)  /* Grace note sequence too long */
 #define ERR_LONGPIECE (31)  /* Cursor overflow */
-#define ERR_MANYNOTES (32)  /* Too many notes */
+#define ERR_MANYNOTES (32)  /* Too many notes and cues */
+#define ERR_CUENUM    (33)  /* Cue number out of range */
 
 /*
  * ASCII characters.
