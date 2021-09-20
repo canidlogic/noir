@@ -108,6 +108,50 @@ int event_note(
     int32_t layer);
 
 /*
+ * Define a new cue event.
+ * 
+ * Cue events may be defined in any order.  However, cues that have a
+ * section index that is greater than zero may only be defined after
+ * that section has been defined with event_section().
+ * 
+ * t is the offset of the cue in quanta from the beginning of the piece.
+ * It must be greater than or equal to the starting offset of the
+ * section the cue belongs to or a fault occurs.
+ * 
+ * sect is the section index of the section that the cue belongs to.  It
+ * must be zero or greater.  If it is greater than zero, it must
+ * reference a section that has been defined by event_section(), and the
+ * time offset of the cue must be greater than or equal to the starting
+ * offset of the section.
+ * 
+ * cue_num is the number of the cue within the section.  It must be in
+ * range [0, NOIR_MAXCUE].  The cue number will be encoded with the 16
+ * least significant bits in the layer field and the most significant
+ * bits in the articulation field.
+ * 
+ * A fault occurs if any of the parameters are invalid.  The function
+ * fails if too many notes and cues have been added.
+ * 
+ * A fault occurs if this is called after event_finish().
+ * 
+ * Parameters:
+ * 
+ *   t - the time offset of the cue
+ *
+ *   sect - the section the cue belongs to
+ * 
+ *   cue_num - the number of the cue within the section
+ * 
+ * Return:
+ * 
+ *   non-zero if successful, zero if too many notes
+ */
+int event_cue(
+    int32_t t,
+    int32_t sect,
+    int32_t cue_num);
+
+/*
  * Flip grace note offsets at the end of the event buffer.
  * 
  * count is the number of grace note events that need their grace note
