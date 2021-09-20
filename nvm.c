@@ -1922,3 +1922,31 @@ int nvm_op_poplayer(int *per) {
   /* Return status */
   return status;
 }
+
+/*
+ * nvm_op_cue function.
+ */
+int nvm_op_cue(int32_t cue_num, int *per) {
+  
+  int status = 1;
+  
+  /* Check parameters */
+  if ((cue_num < 0) || (cue_num > NOIR_MAXCUE) || (per == NULL)) {
+    abort();
+  }
+  
+  /* Initialize if necessary */
+  nvm_init();
+  
+  /* Report the cue event */
+  if (!event_cue(
+          m_nvm_cursor,
+          m_nvm_sect,
+          cue_num)) {
+    status = 0;
+    *per = ERR_MANYNOTES;
+  }
+  
+  /* Return status */
+  return status;
+}
