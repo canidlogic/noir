@@ -19,6 +19,11 @@
 #define NOIR_MAXLAYER (INT32_C(65536))
 
 /*
+ * The maximum cue number.
+ */
+#define NOIR_MAXCUE (INT32_C(0x3dffff))
+
+/*
  * Error codes.
  * 
  * Remember to update err_string() in main module!
