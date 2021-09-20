@@ -19,8 +19,7 @@
  * See the "Noir notation specification" for the format of the input
  * text file.
  * 
- * See the "Noir Music File (NMF) specification" for the format of the
- * output binary file.
+ * See libnmf for the format of the output binary file.
  * 
  * Compilation
  * -----------
@@ -29,9 +28,10 @@
  * 
  *   entity.c
  *   event.c 
- *   nmf.c
  *   nvm.c
  *   token.c
+ * 
+ * Compile with libnmf.
  */
 
 #include "noirdef.h"
