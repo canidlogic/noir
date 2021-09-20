@@ -106,6 +106,7 @@
 #define ASCII_BSLASH  (0x5c)  /* \ */
 #define ASCII_RSQUARE (0x5d)  /* ] */
 #define ASCII_CARET   (0x5e)  /* ^ */
+#define ASCII_GRACC   (0x60)  /* ` */
 #define ASCII_A_LOWER (0x61)  /* a */
 #define ASCII_B_LOWER (0x62)  /* b */
 #define ASCII_C_LOWER (0x63)  /* c */
