@@ -1106,6 +1106,18 @@ static int entity_op(const char *pstr, int *per) {
         }
         break;
       
+      case ASCII_GRACC:
+        /* Cue operation */
+        if (entity_intOp(pstr, &v)) {
+          if (!nvm_op_cue(v, per)) {
+            status = 0;
+          }
+          
+        } else {
+          status = 0;
+          *per = ERR_BADOP;
+        }
+      
       case ASCII_STAR:
         /* Immediate articulation operation */
         v = entity_keyOp(pstr);
