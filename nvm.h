@@ -489,7 +489,8 @@ int nvm_op_poplayer(int *per);
  * The "`" operation for defining a cue.
  * 
  * cue_num is the number of the cue within the current section.  This
- * must be in range [0, NOIR_MAXCUE].
+ * function will range-check the parameter and report an error if
+ * necessary.
  * 
  * per points to a variable to receive an error code if the function
  * fails.  The error codes are defined in noirdef.h
