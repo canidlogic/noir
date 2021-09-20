@@ -282,7 +282,11 @@ static const char *err_string(int code) {
       break;
     
     case ERR_MANYNOTES:
-      ps = "Too many notes";
+      ps = "Too many notes and/or cues";
+      break;
+    
+    case ERR_CUENUM:
+      ps = "Cue number out of range";
       break;
     
     default:
