@@ -1117,6 +1117,7 @@ static int entity_op(const char *pstr, int *per) {
           status = 0;
           *per = ERR_BADOP;
         }
+        break;
       
       case ASCII_STAR:
         /* Immediate articulation operation */
