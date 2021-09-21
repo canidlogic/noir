@@ -512,7 +512,8 @@ static int token_isParamOp(int c) {
   int result = 0;
   
   if ((c == ASCII_BSLASH) || (c == ASCII_CARET) ||
-      (c == ASCII_AMP)    || (c == ASCII_PLUS)) {
+      (c == ASCII_AMP)    || (c == ASCII_PLUS) ||
+      (c == ASCII_GRACC)) {
     result = 1;
   }
   

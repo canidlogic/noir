@@ -19,8 +19,7 @@
  * See the "Noir notation specification" for the format of the input
  * text file.
  * 
- * See the "Noir Music File (NMF) specification" for the format of the
- * output binary file.
+ * See libnmf for the format of the output binary file.
  * 
  * Compilation
  * -----------
@@ -29,9 +28,10 @@
  * 
  *   entity.c
  *   event.c 
- *   nmf.c
  *   nvm.c
  *   token.c
+ * 
+ * Compile with libnmf.
  */
 
 #include "noirdef.h"
@@ -282,7 +282,11 @@ static const char *err_string(int code) {
       break;
     
     case ERR_MANYNOTES:
-      ps = "Too many notes";
+      ps = "Too many notes and/or cues";
+      break;
+    
+    case ERR_CUENUM:
+      ps = "Cue number out of range";
       break;
     
     default:

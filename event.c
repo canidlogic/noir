@@ -145,6 +145,45 @@ int event_note(
 }
 
 /*
+ * event_cue function.
+ */
+int event_cue(
+    int32_t t,
+    int32_t sect,
+    int32_t cue_num) {
+  
+  NMF_NOTE n;
+  
+  /* Initialize structure */
+  memset(&n, 0, sizeof(NMF_NOTE));
+  
+  /* Make sure module initialized */
+  event_init();
+  
+  /* Check parameters */
+  if (t < 0) {
+    abort();
+  }
+  if ((sect < 0) || (sect >= NMF_MAXSECT)) {
+    abort();
+  }
+  if ((cue_num < 0) || (cue_num > NOIR_MAXCUE)) {
+    abort();
+  }
+
+  /* Fill in the note structure for a cue */
+  n.t = t;
+  n.dur = 0;
+  n.pitch = 0;
+  n.art = (uint16_t) (cue_num >> 16);
+  n.sect = (uint16_t) sect;
+  n.layer_i = (uint16_t) (cue_num & INT32_C(0xffff));
+  
+  /* Call through */
+  return nmf_append(m_event_pd, &n);
+}
+
+/*
  * event_flip function.
  */
 void event_flip(int32_t count, int32_t max_offs) {

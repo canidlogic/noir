@@ -151,7 +151,7 @@ Noir files are interpreted from start to finish.  This section describes the sta
 
 ### <span id="mds4p1">4.1 Event buffer</span>
 
-All note events that are output during interpretation are stored in the event buffer, in the order that they were output.  The event buffer is only referred to during grace note flushes (see &sect;4.7 [Grace note state](#mds4p7)), at which point the most recently output grace note events are modified to correct their grace note offsets.
+All note and cue events that are output during interpretation are stored in the event buffer, in the order that they were output.  The event buffer is only referred to during grace note flushes (see &sect;4.7 [Grace note state](#mds4p7)), at which point the most recently output grace note events are modified to correct their grace note offsets.
 
 The event buffer starts out empty.  See &sect;5 [Execution](#mds5) for details of how the event buffer is filled.
 
@@ -231,7 +231,7 @@ When a rest, pitch, pitch set, or `/` operator is encountered in the input and t
 
 When the grace offset register contains a non-zero value, then note events that are output have their durations set to a special value that indicates the current grace note offset in the grace offset register.  Furthermore, each note event that is output when the grace offset register is non-zero causes the grace event count register to increment.
 
-When a grace note flush is triggered by changes or a reset to the duration register (see &sect;4.3 [Current pitch and duration](#mds4p3)) or by the end of the file, then the following things happen.  First, if the grace event count register is non-zero, then the last _n_ events in the event buffer, where _n_ is the grace event count register value, have their grace note offset flipped.  To flip a grace note offset, subtract it from one greater than the grace offset register value.  Second, reset both the grace event count register and the grace offset register to zero.
+When a grace note flush is triggered by changes or a reset to the duration register (see &sect;4.3 [Current pitch and duration](#mds4p3)) or by a cue or by the end of the file, then the following things happen.  First, if the grace event count register is non-zero, then the last _n_ events in the event buffer, where _n_ is the grace event count register value, have their grace note offset flipped.  To flip a grace note offset, subtract it from one greater than the grace offset register value.  Second, reset both the grace event count register and the grace offset register to zero.
 
 ## <span id="mds5">5. Execution</span>
 
@@ -333,6 +333,10 @@ The `&` operator sets the base layer register.  Only the layer ID within the bas
     Operator +
 
 The `+` operator pushes a layer on top of the layer stack.  The given integer indicates the layer number, and the current value of the section count register is used for the section number.  The integer value must be greater than zero.
+
+    Operator `
+
+The grave accent operator emits a cue event to the NMF file at the current cursor location.  If there are buffered grace notes, this operator will cause a [grace note flush](#mds4p7) (&sect;4.7).  The integer parameter is a cue number within the current section.  The cue number must be zero or greater.  Noir will not check for the uniqueness of cue numbers, so you may define a cue number within a section however many times you wish, though this is not generally recommended.  Cues will be stored in the NMF output as notes that have zero duration and zero pitch.  The cue number will be encoded such that the layer field stores the 16 least significant bits of the cue number and the articulation field stores the most significant bits.
 
 #### <span id="mds5p1p3">5.1.3 Key operators</span>
 

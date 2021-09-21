@@ -485,4 +485,26 @@ int nvm_op_pushlayer(int32_t layer, int *per);
  */
 int nvm_op_poplayer(int *per);
 
+/*
+ * The "`" operation for defining a cue.
+ * 
+ * cue_num is the number of the cue within the current section.  This
+ * function will range-check the parameter and report an error if
+ * necessary.
+ * 
+ * per points to a variable to receive an error code if the function
+ * fails.  The error codes are defined in noirdef.h
+ * 
+ * Parameters:
+ * 
+ *   cue_num - the cue number
+ * 
+ *   per - pointer to an error variable
+ * 
+ * Return:
+ * 
+ *   non-zero if successful, zero if error
+ */
+int nvm_op_cue(int32_t cue_num, int *per);
+
 #endif

@@ -19,6 +19,11 @@
 #define NOIR_MAXLAYER (INT32_C(65536))
 
 /*
+ * The maximum cue number.
+ */
+#define NOIR_MAXCUE (INT32_C(0x3dffff))
+
+/*
  * Error codes.
  * 
  * Remember to update err_string() in main module!
@@ -55,7 +60,8 @@
 #define ERR_NODUR     (29)  /* Duration register undefined */
 #define ERR_HUGEGRACE (30)  /* Grace note sequence too long */
 #define ERR_LONGPIECE (31)  /* Cursor overflow */
-#define ERR_MANYNOTES (32)  /* Too many notes */
+#define ERR_MANYNOTES (32)  /* Too many notes and cues */
+#define ERR_CUENUM    (33)  /* Cue number out of range */
 
 /*
  * ASCII characters.
@@ -101,6 +107,7 @@
 #define ASCII_BSLASH  (0x5c)  /* \ */
 #define ASCII_RSQUARE (0x5d)  /* ] */
 #define ASCII_CARET   (0x5e)  /* ^ */
+#define ASCII_GRACC   (0x60)  /* ` */
 #define ASCII_A_LOWER (0x61)  /* a */
 #define ASCII_B_LOWER (0x62)  /* b */
 #define ASCII_C_LOWER (0x63)  /* c */
